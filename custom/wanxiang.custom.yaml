@@ -1,0 +1,408 @@
+#使用之前请详细遍历每一行，都注释了功能点，看清楚是不是你要的，需不需要修改参数，哪些该留，哪些该删除，够语重心长了吧😄
+patch:
+  speller/algebra:
+    __patch:
+      #- 模糊音                                  # 这里启用后，本文件末尾可配置具体条目
+      - wanxiang_algebra:/base/全拼            # 可选输入方案名称：全拼，自然码, 自然龙, 汉心龙，小鹤双拼, 搜狗双拼, 微软双拼, 智能ABC, 紫光双拼, 国标双拼，拼音加加，乱序17
+##########################以上格式受指令初始化控制，最好保持格式不变，如果发生变更请不要使用指令修改相关数据#####################################
+  #custom_phrase/user_dict: custom_phrasexx    # 这里改成什么就需要手动创建同名的 custom_phrasexx.txt 文件在用户目录，这个文件主要用于置顶，编码为自定义编码的词汇
+  #translator/packs/+:
+    #- userxx                                  #导入根目录下名称为userxx.dict.yaml的自定义固定词典，编码要与固定词库一致，编码权重都不要少，形如姓名、专有名词公司名称等等
+  #下面是候选数量
+  menu/page_size: 6  #不要超过6，7890用于代表声调1234，6个管够你用了，如果你非要10个，不要问我😜。
+
+  super_comment:                  # 超级注释模块，子项配置 true 开启，false 关闭
+    candidate_length: 2           # 候选词辅助码提醒的生效长度，0为关闭  但同时清空其它，应当使用上面开关来处理
+    corrector_type: "〔comment〕"  # 随意更换左右括号，比如"〔comment〕" 不加括号为无括号，comment占位不能动
+    cand_type:
+      user_phrase: ""
+      sentence: "∞"
+      phrase: ""
+      table: ""
+      user_table: ""
+      completion: ""
+      abbrev: ""
+      fallback: "~"
+
+  super_replacer:
+    db_name: lua/replacer
+    delimiter: "|"
+    comment_format: "〔%s〕"
+    chain: true   #true表示流水线作业，上一个option产出交给下一个处理，典型的s2t>t2hk=s2hk，false就是并行，直接用text转换
+    types:
+      # 场景1：输入 '哈哈' -> 变成 '1.哈哈 2.😄'
+      - option: emoji           # 开关名称与上面开关名称保持一致
+        mode: append            # 新增候选append 替换原候选replace 替换注释comment 简码模式abbrev匹配输入编码置顶词组
+        comment_mode: none      # 注释模式: "append"(原候选注释继承), "text"(原候选文本放在注释), "none"(空，默认)
+        tags: [abc]             # 生效的tag
+        prefix: "_em_"          # 前缀用于区分同一个数据库的不同用途数据
+        files:
+          - lua/data/emoji.txt
+      # 场景2：输入 'hello' -> 显示 'hello 〔你好 | 哈喽〕'
+      - option: chinese_english
+        mode: append        # <--- 添加注释模式
+        comment_mode: none
+        tags: [abc]
+        prefix: "_en_"
+        files:
+          - lua/data/english_chinese.txt
+          - lua/data/chinese_english.txt
+      # 场景3：用于常驻的直接替换 option: true
+      - option: true
+        mode: append         # <--- 新增候选模式
+        comment_mode: none
+        tags: [abc]
+        prefix: "_ot_"
+        files:
+          - lua/data/others.txt
+      # 场景4：用于简繁转换的直接替换
+      - option: [ s2t, s2hk, s2tw ]   #后面依赖这条流水线有一个开关为true这条流水线就能工作
+        mode: replace         # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true        # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2t_"
+        files:
+          - lua/data/STCharacters.txt
+          - lua/data/STPhrases.txt
+      - option: s2hk
+        mode: replace         # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true        # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2hk_"
+        files:
+          - lua/data/HKVariants.txt
+      - option: s2tw
+        mode: replace         # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true        # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2tw_"
+        files:
+          - lua/data/TWVariants.txt
+      - option: [ abbrev_lazy, abbrev_always ]
+        mode: abbrev          # <--- 新增的简码模式
+        tags: [abc]
+        prefix: "_abbr_"
+        files:
+          - lua/data/abbrev.txt # 格式：zm\t怎么|在吗
+  # 字符集过滤lua
+  # a,通用规范汉字表
+  # b,GB2312,
+  # g,GBK,
+  # T,Big5,(台港澳常用)
+  # j,简体,OpenCC (t2s)
+  # f,通用繁体,OpenCC (s2t)
+  # h,香港繁体, OpenCC (s2hk)
+  # t,台湾繁体, OpenCC (s2tw)
+  # u,基本区,U+4E00 - U+9FFF
+  # A-I,扩展 A-I 区,U+3400 及各扩展区 (支持到 Ext-I)
+  # c,兼容区汉字
+  # 你可以通过黑白名单微调你自己每个开关下面的字符集过滤清单，主数据库位于lua/charset.reverse.bin不可编辑
+  # 你可以按上面提到的规则代号在base处填写上基础集，还可以在每一个开关的开白名单设置微调数据，就像默认添加的字符集过滤在8105基础上新增了一些
+  # 你可以定义多个开关，多个开启状态的开关求并集，比如charset_filter开着，s2hk也开着，那么就会显示这两个集合的所有汉字
+  # 优雅的地方在于s2hk开着，charset_filter关着 我们照样能使用 港繁能用到的所有字，是真正的本体，无关字会被过滤，而当都开着则是享受简体转换成繁体的后的结果
+  # 这个设计真正的兼容了简繁转换与字符集过滤的矛盾，还能满足用户多种自定义需求，你可以在开关增加类别，并在charset下面新增option类去选择按照字区去过滤，等多种组合方式
+  charset:
+    - option: charset_filter
+      base: a  #可以填入多个类别如aj
+      addlist:
+        - "诶濛硷氽尛躝〇冇吔咗囧屌鲶芶咲畑垅𰻝𰻞"
+      blacklist: []
+    - option: s2t
+      base: f
+      addlist: []
+      blacklist: []
+    - option: s2hk
+      base: h
+      addlist: []
+      blacklist: []
+    - option: s2tw
+      base: t
+      addlist: []
+      blacklist: []
+
+  # Tips 配置项
+  tips:
+    # 禁用的 tips 类型，初始化 tips 数据库的时候会直接忽略相关规则，修改部署后生效
+    # 可选项为：偏旁，符号，化学式，时间，符号，组字，翻译，表情，货币，车牌, 单位
+    disabled_types: []
+
+  # 给 kp_number_processor 用的小键盘模式，能自动读取recognizer下面正则与之功能对齐
+  kp_number_mode: auto
+    #小键盘数字处理逻辑
+    #  "compose" : 小键盘数字始终不上屏参与编码
+    #  "auto"    : 输入中 push，空闲时 commit（默认）
+
+  #成语简码前置位置，只能设置在第一页，大于当前页数量则默认在最后一个，0代表关闭前置
+  idiom_preposition: 0
+
+  #shijian:仅仅作为提示使用，编码已经写死，引导键可以在key_binder下修改前缀
+  #时间：osj 或者 /sj
+  #日期：orq 或者 /rq
+  #农历：onl 或者 /nl
+  #星期：oxq 或者 /xq
+  #今年第几周：oww 或者 /ww
+  #节气：ojq 或者 /jq
+  #日期+时间：odt 或者 /dt
+  #时间戳：ott 或者 /tt
+  #大写N日期：N20250315 或者N0312不带年
+  #节日：ojr 或者 /jr
+  #问候模板：/day 或者 oday
+  # 通用日期时间格式化函数（供 /rq、/sj、/dt、N0101、N20150101 场景复用）
+  # 支持转义：
+  #   \X       —— 转义单个字符 X，按字面量输出（如 \Y \m \H 等）
+  #   [[...]]  —— 区块整体按字面量输出
+  #
+  # 约定占位符：
+  # 【日期】
+  #   Y  四位年份           0000-9999  例：2025
+  #   y  两位年份           00-99      例：25
+  #   m  月（前导零）        01-12      例：02
+  #   n  月（不带前导零）     1-12       例：2
+  #   d  日（前导零）        01-31      例：09
+  #   j  日（不带前导零）     1-31       例：9
+  #
+  # 【时间】
+  #   H  24小时（前导零）   00-23      例：08
+  #   G  24小时（不带零）   0-23       例：8
+  #   I  12小时（前导零）   01-12      例：08
+  #   l  12小时（不带零）   1-12       例：8   （注意是小写 L）
+  #   M  分钟（前导零）     00-59      例：05
+  #   S  秒（前导零）       00-59      例：09
+  #   p  am/pm（小写）     am / pm
+  #   P  AM/PM（大写）     AM / PM
+  # 【时区】
+  #   O  带冒号格式        +08:00、-04:30、+05:45
+  #   o  不带冒号格式      +0800、-0430、+0545
+  #   A  中文时段    凌晨 / 上午 / 中午 / 下午 / 晚上
+  date_formats:
+    - "Y年m月d日"
+    - "Y-m-d"
+    - "Y/m/d"
+    - "Y.m.d"
+    - "Ymd"
+    - "Y年n月j日"
+    - "y年n月j日"
+    - "n月j日"
+  time_formats:
+    - "H:M"
+    - "H点M分"
+    - "H:M:S"
+    - "H时M分S秒"
+    - "AI:M"
+    - "I:M P"
+  datetime_formats:
+    - "Y-m-d H:M:S"
+    - "Y-m-dTH:M:S O"
+    - "YmdHMS"
+    - "Y年m月d日 H点M分"
+    - "y/m/d I:M p"
+
+  #常规状态下数字转换成相应的字符，由超级preedit接管
+  tone_preedit:
+    "7": "¹"
+    "8": "²"
+    "9": "³"
+    "0": "⁴"
+
+  # a/、单字母组合，触发预设编码自动上屏快符，支持将值设为"repeat" 以支持对应按键重复上屏功能，custom>schema>lua最终合并键值
+  # 现在就支持26字母快符，结合成对符号输入，这边的压力小一些
+  quick_symbol_text:
+    trigger: "^([a-z])/$"
+    symkey:
+      q: "repeat"
+      w: "？"
+      e: "（"
+      r: "）"
+      t: "~"
+      y: "·"
+      u: "『"
+      i: "』"
+      o: "〖"
+      p: "〗"
+      a: "！"
+      s: "……"
+      d: "、"
+      f: "“"
+      g: "”"
+      h: "‘"
+      j: "’"
+      k: "【"
+      l: "】"
+      z: "。”"
+      x: "？”"
+      c: "！”"
+      v: "——"
+      b: "%"
+      n: "《"
+      m: "》"
+
+  #通过在有候选的情况下，通过末尾检测到形如\a来触发为第一候选进行成对符号包裹例如nihao\c 候选[你好]
+  #trigger只能设置为单符号，因为按下一次锁定第一候选，按下映射开始包裹符号pro用户不能设置为/
+  #两个字符可以不用|默认前后分割，需要明确区分前后的使用|分割，可以有一侧为空，不可以使用多个||
+  paired_symbols:
+    trigger: "\\"  #(注意反斜杠这是转义写法\\使用时\单反斜杠即可)
+    symkey:
+      # ===== 基本括号与引号 =====
+      a: "[]"        # 方括号
+      b: "【】"       # 黑方头括号
+      c: "❲❳"        # 双大括号 / 装饰括号
+      d: "〔〕"       # 方头括号
+      e: "⟮⟯"        # 小圆括号 / 装饰括号
+      f: "⟦⟧"        # 双方括号 / 数学集群括号
+      g: "「」"       # 直角引号
+      # h: 预留用于 Markdown 一级标题
+      i: "『』"       # 双直角引号
+      j: "<>"        # 尖括号
+      k: "《》"       # 书名号（双）
+      l: "〈〉"       # 书名号（单）
+      m: "‹›"        # 法文单书名号
+      n: "«»"        # 法文双书名号
+      o: "⦅⦆"        # 白圆括号
+      p: "⦇⦈"        # 白方括号
+      q: "()"        # 圆括号
+      r: "〖〗"        # 花括号扩展 / 装饰括号
+      s: "［］"       # 全角方括号
+      t: "⟨⟩"        # 数学角括号
+      u: "〈〉"        # 数学尖括号
+      v: "❰❱"        # 装饰角括号
+      w: "（）"       # 全角圆括号
+      x: "｛｝"       # 全角花括号
+      y: "⟪⟫"       # 双角括号
+      z: "{}"        # 花括号
+
+      # ===== 扩展括号族 / 引号 =====
+      dy: "''"        # 英文单引号
+      sy: "\"\""      # 英文双引号
+      zs: "“”"        # 中文弯双引号
+      zd: "‘’"        # 中文弯单引号
+      fy: "``"        # 反引号
+
+      # ===== 双字母括号族 =====
+      aa: "〚〛"      # 双中括号
+      bb: "〘〙"      # 双中括号（小）
+      cc: "〚〛"      # 双中括号（重复，可用于 Lua 匹配）
+      dd: "❨❩"      # 小圆括号装饰
+      ee: "❪❫"      # 小圆括号装饰
+      ff: "❬❭"      # 小尖括号装饰
+      gg: "⦉⦊"      # 双弯方括号
+      ii: "⦍⦎"      # 双弯方括号
+      jj: "⦏⦐"      # 双弯方括号
+      kk: "⦑⦒"      # 双弯方括号
+      ll: "❮❯"      # 小尖括号装饰
+      mm: "⌈⌉"      # 上取整 / 数学符号
+      nn: "⌊⌋"      # 下取整 / 数学符号
+      oo: "⦗⦘"      # 双方括号装饰（补齐）
+      pp: "⦙⦚"      # 双方括号装饰（补齐）
+      qq: "⟬⟭"      # 小双角括号
+      rr: "❴❵"      # 花括号装饰
+      ss: "⌜⌝"      # 数学上角符号
+      tt: "⌞⌟"      # 数学下角符号
+      uu: "⸢⸣"      # 装饰方括号
+      vv: "⸤⸥"      # 装饰方括号
+      ww: "﹁﹂"      # 中文书名号 / 注释引号
+      xx: "﹃﹄"      # 中文书名号 / 注释引号
+      yy: "⌠⌡"      # 数学 / 程序符号
+      zz: "⟅⟆"      # 数学 / 装饰括号
+
+      # ===== Markdown / 标记 =====
+      md: "**|**"       # Markdown 粗体
+      jc: "**|**"       # 加粗
+      it: "__|__"       # 斜体
+      st: "~~|~~"       # 删除线
+      eq: "==|=="       # 高亮
+      ln: "`|`"         # 行内代码
+      cb: "```|```"     # 代码块
+      qt: "> |"         # 引用
+      ul: "- |"         # 无序列表项
+      ol: "1. |"        # 有序列表项
+      lk: "[|](url)"    # 链接
+      im: "![|](img)"   # 图片
+      h: "# |"          # 一级标题
+      hh: "## |"        # 二级标题
+      hhh: "### |"      # 三级标题
+      hhhh: "#### |"    # 四级标题
+      sp: "\\|"         # 反斜杠转义
+      br: "|  "         # 换行
+      cm: "<!--|-->"    # 注释
+
+      # ===== 运算与标记符 =====
+      pl: "++"
+      mi: "--"
+      sl: "//"
+      bs: "\\\\"
+      at: "@@"
+      dl: "$$"
+      pc: "%%"
+      an: "&&"
+      cr: "^^"
+      cl: "::"
+      sc: ";;"
+      ex: "!!"
+      qu: "??"
+      sb: "sb"
+
+  #下面用来改变你的windows小狼毫右下角软件图标
+  #schema/+:
+  #  icon: "icons/zhong.ico"
+  #  ascii_icon: "icons/ying.ico"
+  #下面这个可以改变tips上屏的按键
+  key_binder/tips_key: "comma"   #修改时候去default找，默认是逗号
+  key_binder/sequence: # Lua 配置：手动排序的快捷键 super_sequence.lua，不要用方向键，各种冲突，一定要避免冲突
+    up: "Control+j"    # 上移
+    down: "Control+k"  # 下移
+    reset: "Control+l" # 重置
+    pin: "Control+p"   # 置顶
+
+
+  #translator/enable_user_dict: true  # 是否开启自动调频用户词，如果你希望使用下面``造词功能，请保持false，因为两个跨翻译器会造成词汇不能正常记录
+
+#以下恢复``造词功能，也就是平时不记录，引导才记录，按需造词，如果你想恢复这个功能，请取消注释----
+  #recognizer/patterns/add_user_dict: "^``[A-Za-z/`']*$"      #自造词引导方式
+  #user_dict_set/enable_user_dict: true     
+  #add_user_dict/enable_user_dict: true
+  # 取消注释以开启自动无词频造词
+  #add_user_dict/enable_auto_phrase: true
+#按需造词全功能段落结束---------------------------------------------------------------
+
+模糊音: 
+  __append:
+    # n - l
+    - derive/^l/n
+    - derive/^n/l
+    # r - y     开头
+    - derive/^y/r
+    - derive/^r/y
+    # h - f     开头
+    - derive/^h/f
+    - derive/^f/h
+    # r - l     开头
+    - derive/^r/l
+    - derive/^l/r
+    # k - g     开头
+    - derive/^k/g
+    - derive/^g/k
+    # en - eng
+    - derive/(ē|é|ě|è|e)ng(.*)$/$1n$2
+    - derive/(ē|é|ě|è|e)n(.*)$/$1ng$2
+    # in - ing
+    - derive/(ī|í|ǐ|ì|i)ng(.*)$/$1n$2
+    - derive/(ī|í|ǐ|ì|i)n(.*)$/$1ng$2
+    # c - ch
+    - derive/^c([^h]*)/ch$1
+    - derive/^ch/c
+    # z - zh
+    - derive/^z([^h]*)/zh$1
+    - derive/^zh/z
+    # s - sh
+    - derive/^s([^h]*)/sh$1
+    - derive/^sh/s
+#使用方案跟在拼写运算后面
+18jian:
+  __append:
+    - xlit/qwertyuiopasdfghjklzxcvbnm/QWWRRYUIIPASSFFHJJLZXXVBBM
+14jian:
+  __append:
+    - xlit/qwertyuiopasdfghjklzxcvbnm/QQEETTUUOOAADDGGJJLZZCCBBM
