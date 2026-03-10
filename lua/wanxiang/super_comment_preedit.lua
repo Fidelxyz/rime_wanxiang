@@ -1,15 +1,35 @@
 --@amzxyz https://github.com/amzxyz/rime_wanxiang
 
-
-local wanxiang = require('wanxiang/wanxiang')
+local wanxiang = require("wanxiang/wanxiang")
 
 local tone_map = {
-    ['ā']='a', ['á']='a', ['ǎ']='a', ['à']='a',
-    ['ē']='e', ['é']='e', ['ě']='e', ['è']='e',
-    ['ī']='i', ['í']='i', ['ǐ']='i', ['ì']='i',
-    ['ō']='o', ['ó']='o', ['ǒ']='o', ['ò']='o', ['ň']='n',
-    ['ū']='u', ['ú']='u', ['ǔ']='u', ['ù']='u', ['ǹ']='n',
-    ['ǖ']='ü', ['ǘ']='ü', ['ǚ']='ü', ['ǜ']='ü', ['ń']='n',
+    ["ā"] = "a",
+    ["á"] = "a",
+    ["ǎ"] = "a",
+    ["à"] = "a",
+    ["ē"] = "e",
+    ["é"] = "e",
+    ["ě"] = "e",
+    ["è"] = "e",
+    ["ī"] = "i",
+    ["í"] = "i",
+    ["ǐ"] = "i",
+    ["ì"] = "i",
+    ["ō"] = "o",
+    ["ó"] = "o",
+    ["ǒ"] = "o",
+    ["ò"] = "o",
+    ["ň"] = "n",
+    ["ū"] = "u",
+    ["ú"] = "u",
+    ["ǔ"] = "u",
+    ["ù"] = "u",
+    ["ǹ"] = "n",
+    ["ǖ"] = "ü",
+    ["ǘ"] = "ü",
+    ["ǚ"] = "ü",
+    ["ǜ"] = "ü",
+    ["ń"] = "n",
 }
 
 local function remove_pinyin_tone(s)
@@ -45,10 +65,14 @@ end
 
 function CF.get_comment(cand, env)
     local dict = CF.get_dict(env)
-    if not dict then return "" end
+    if not dict then
+        return ""
+    end
 
     local raw = dict:lookup(cand.text)
-    if not raw or raw == "" then return "" end
+    if not raw or raw == "" then
+        return ""
+    end
 
     local tpl = (env and env.settings and env.settings.chaifen) or ""
 
@@ -69,7 +93,7 @@ end
 local CR = {}
 local corrections_cache = nil -- 用于缓存已加载的词典
 function CR.init(env)
-    CR.style = env.settings.corrector_type or '{comment}'
+    CR.style = env.settings.corrector_type or "{comment}"
     --if corrections_cache then return end
     local auto_delimiter = env.settings.auto_delimiter
     local is_pro = wanxiang.is_pro_scheme(env)
@@ -117,44 +141,72 @@ end
 -- 部件组字返回的注释
 -- ----------------------
 local function get_charset_label(text)
-    if not text or text == "" then return nil end
+    if not text or text == "" then
+        return nil
+    end
     local cp = utf8.codepoint(text)
-    if not cp then return nil end
+    if not cp then
+        return nil
+    end
 
     -- 按照 Unicode 区块频率排序
-    if cp >= 0x4E00   and cp <= 0x9FFF  then return "基本" end
-    if cp >= 0x3400   and cp <= 0x4DBF  then return "扩A" end
-    if cp >= 0x20000  and cp <= 0x2A6DF then return "扩B" end
-    if cp >= 0x2A700  and cp <= 0x2B73F then return "扩C" end
-    if cp >= 0x2B740  and cp <= 0x2B81F then return "扩D" end
-    if cp >= 0x2B820  and cp <= 0x2CEAF then return "扩E" end
-    if cp >= 0x2CEB0  and cp <= 0x2EBEF then return "扩F" end
-    if cp >= 0x2EBF0  and cp <= 0x2EE5F then return "扩I" end
-    if cp >= 0x30000  and cp <= 0x3134F then return "扩G" end
-    if cp >= 0x31350  and cp <= 0x323AF then return "扩H" end
-    
+    if cp >= 0x4E00 and cp <= 0x9FFF then
+        return "基本"
+    end
+    if cp >= 0x3400 and cp <= 0x4DBF then
+        return "扩A"
+    end
+    if cp >= 0x20000 and cp <= 0x2A6DF then
+        return "扩B"
+    end
+    if cp >= 0x2A700 and cp <= 0x2B73F then
+        return "扩C"
+    end
+    if cp >= 0x2B740 and cp <= 0x2B81F then
+        return "扩D"
+    end
+    if cp >= 0x2B820 and cp <= 0x2CEAF then
+        return "扩E"
+    end
+    if cp >= 0x2CEB0 and cp <= 0x2EBEF then
+        return "扩F"
+    end
+    if cp >= 0x2EBF0 and cp <= 0x2EE5F then
+        return "扩I"
+    end
+    if cp >= 0x30000 and cp <= 0x3134F then
+        return "扩G"
+    end
+    if cp >= 0x31350 and cp <= 0x323AF then
+        return "扩H"
+    end
+
     -- 兼容区
-    if cp >= 0xF900   and cp <= 0xFAFF  then return "兼容" end
-    if cp >= 0x2F800  and cp <= 0x2FA1F then return "兼容" end
+    if cp >= 0xF900 and cp <= 0xFAFF then
+        return "兼容"
+    end
+    if cp >= 0x2F800 and cp <= 0x2FA1F then
+        return "兼容"
+    end
 
     return nil
 end
 
 local function get_az_comment(cand, env, initial_comment)
     local inner_parts = {}
-    
+
     -- 音形注释拆解逻辑
     if initial_comment and initial_comment ~= "" then
         local segments = {}
         for segment in string.gmatch(initial_comment, "[^%s]+") do
             table.insert(segments, segment)
         end
-        
+
         if #segments > 0 then
             local semicolon_count = select(2, string.gsub(segments[1], ";", ""))
             local pinyins = {}
             local fuzhu = nil
-            
+
             for _, segment in ipairs(segments) do
                 local pinyin = string.match(segment, "^[^;~]+")
                 local fz = nil
@@ -163,16 +215,18 @@ local function get_az_comment(cand, env, initial_comment)
                     fz = string.match(segment, ";(.+)$")
                 end
 
-                if pinyin then 
-                    table.insert(pinyins, pinyin) 
+                if pinyin then
+                    table.insert(pinyins, pinyin)
                 end
-                if not fuzhu and fz and fz ~= "" then fuzhu = fz end
+                if not fuzhu and fz and fz ~= "" then
+                    fuzhu = fz
+                end
             end
 
             if #pinyins > 0 then
                 local pinyin_str = table.concat(pinyins, ",")
                 table.insert(inner_parts, string.format("音%s", pinyin_str))
-                
+
                 if fuzhu then
                     table.insert(inner_parts, string.format("辅%s", fuzhu))
                 end
@@ -252,9 +306,11 @@ local SV = {}
 
 -- 工具：取光标前的编码（安全处理 caret 越界）
 local function front_input(ctx)
-    if not ctx then return "" end
+    if not ctx then
+        return ""
+    end
     local raw_full = ctx.input or ""
-    local caret    = ctx.caret_pos or #raw_full
+    local caret = ctx.caret_pos or #raw_full
     if caret < 0 then
         caret = 0
     elseif caret > #raw_full then
@@ -266,9 +322,9 @@ end
 -- 这个模块主要用于将滤镜阶段未修改前的注释或者 preedit
 -- 存到上下文变量里，按键处理阶段使用；update_notifier 保证一致性
 function SV.init(env)
-    env._sv_seq_sig          = ""
-    env._sv_last_pre         = ""   -- 最近一次要写入的 preedit
-    env._saved_input_for_seq = ""   -- 上次对应的 raw_in（光标前编码）
+    env._sv_seq_sig = ""
+    env._sv_last_pre = "" -- 最近一次要写入的 preedit
+    env._saved_input_for_seq = "" -- 上次对应的 raw_in（光标前编码）
 
     local ctx = env.engine.context
 
@@ -298,15 +354,17 @@ function SV.fini(env)
         env._sv_ctx_conn:disconnect()
         env._sv_ctx_conn = nil
     end
-    env._sv_seq_sig          = nil
-    env._sv_last_pre         = nil
+    env._sv_seq_sig = nil
+    env._sv_last_pre = nil
     env._saved_input_for_seq = nil
 end
 
 -- 限制更新范围：同一个 raw_in 只记第一次的 preedit
 function SV.update_preedit(env, preedit)
     local ctx = env.engine.context
-    if not ctx then return end
+    if not ctx then
+        return
+    end
 
     local raw_in = front_input(ctx)
     preedit = preedit or ""
@@ -317,7 +375,7 @@ function SV.update_preedit(env, preedit)
 
     if env._saved_input_for_seq ~= raw_in then
         env._saved_input_for_seq = raw_in
-        env._sv_last_pre         = preedit
+        env._sv_last_pre = preedit
     end
 end
 -- 对 cand.preedit 应用转换：隐藏双大写辅助码
@@ -331,8 +389,10 @@ local function apply_aux_preedit(env, cand)
     local input = ctx and ctx.input or ""
 
     -- 1. 基础拦截：如果输入包含连续数字（如小键盘），或者首选就是英文，不转换
-    if input:match("%d%d") then return end
-    
+    if input:match("%d%d") then
+        return
+    end
+
     -- 判断首选是否为纯英文（通过匹配是否全由英文字符组成且不含中文）
     if cand.text:match("^[%a%p%s]+$") then
         return
@@ -341,7 +401,7 @@ local function apply_aux_preedit(env, cand)
     -- 2. 加载配置
     local cfg = engine and engine.schema and engine.schema.config
     local aux_symbol = cfg and cfg:get_string("force_upper_aux/symbol")
-    
+
     -- 如果没配置 symbol，直接跳过大写转换逻辑
     if not aux_symbol or aux_symbol == "" then
         return
@@ -376,7 +436,7 @@ end
 local ZH = {}
 function ZH.init(env)
     local config = env.engine.schema.config
-    local delimiter = config:get_string('speller/delimiter') or " '"
+    local delimiter = config:get_string("speller/delimiter") or " '"
     local auto_delimiter = delimiter:sub(1, 1)
     local manual_delimiter = delimiter:sub(2, 2)
     env.settings = {
@@ -391,7 +451,7 @@ function ZH.init(env)
     -- 动态读取 cand_type 配置
     env.cand_type_symbols = {}
     local map = config:get_map("super_comment/cand_type")
-    
+
     if map then
         -- 直接遍历 map 的 keys
         for _, key in ipairs(map:keys()) do
@@ -475,7 +535,7 @@ function ZH.func(input, env)
         -- ② 拆分注释
         if is_chaifen_enabled then
             local cf_comment = CF.get_comment(cand, env)
-            if cf_comment and cf_comment ~= "" then  --不为空很重要
+            if cf_comment and cf_comment ~= "" then --不为空很重要
                 final_comment = cf_comment
             end
         end

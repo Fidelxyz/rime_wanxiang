@@ -5,14 +5,14 @@
 -- 2026.02.09: 添加代理区字符检测，拒绝生成无效代理对
 local function unicode(input, seg, env)
     -- 获取 recognizer/patterns/unicode 的第 2 个字符作为触发前缀
-    env.unicode_keyword = env.unicode_keyword or
-        env.engine.schema.config:get_string('recognizer/patterns/unicode'):sub(2, 2)
-    if seg:has_tag("unicode") and env.unicode_keyword ~= '' and input:sub(1, 1) == env.unicode_keyword then
+    env.unicode_keyword = env.unicode_keyword
+        or env.engine.schema.config:get_string("recognizer/patterns/unicode"):sub(2, 2)
+    if seg:has_tag("unicode") and env.unicode_keyword ~= "" and input:sub(1, 1) == env.unicode_keyword then
         local ucodestr = input:match(env.unicode_keyword .. "(%x+)")
         if ucodestr and #ucodestr > 1 then
-            local segment = env.engine.context.composition:back()        
+            local segment = env.engine.context.composition:back()
             -- 设置标签
-            segment.tags = segment.tags + Set({ "unicode" })             
+            segment.tags = segment.tags + Set({ "unicode" })
             local code = tonumber(ucodestr, 16)
             if code > 0x10FFFF then
                 yield(Candidate("unicode", seg.start, seg._end, "数值超限！", ""))

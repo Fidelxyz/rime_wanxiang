@@ -8,14 +8,18 @@ local wanxiang = require("wanxiang/wanxiang")
 -- 获取 UTF-8 字符
 local function get_utf8_char(str, index)
     local start_byte = utf8.offset(str, index)
-    if not start_byte then return nil end
+    if not start_byte then
+        return nil
+    end
     local end_byte = utf8.offset(str, index + 1)
     return string.sub(str, start_byte, (end_byte and end_byte - 1) or nil)
 end
 
 -- 获取 UTF-8 前缀
 local function get_utf8_prefix(str, n)
-    if not str or str == "" or n <= 0 then return "" end
+    if not str or str == "" or n <= 0 then
+        return ""
+    end
     local offset = utf8.offset(str, n + 1)
     return offset and string.sub(str, 1, offset - 1) or str
 end
@@ -34,25 +38,35 @@ end
 
 -- 获取输入切分后的拼音部分
 local function get_script_text_parts(ctx)
-    local raw_in    = ctx.input or ""
-    local prop_key  = ctx:get_property("sequence_preedit_key") or ""
-    local prop_val  = ctx:get_property("sequence_preedit_val") or ""
+    local raw_in = ctx.input or ""
+    local prop_key = ctx:get_property("sequence_preedit_key") or ""
+    local prop_val = ctx:get_property("sequence_preedit_val") or ""
     local script_txt = ctx:get_script_text() or ""
     local s = (prop_key == raw_in and prop_val ~= "") and prop_val or script_txt
-    if s == "" then return {} end
+    if s == "" then
+        return {}
+    end
     local auto, manual = get_delimiters(ctx)
     local pat = "[^" .. esc_class(auto) .. esc_class(manual) .. "%s]+"
     local parts = {}
-    for w in s:gmatch(pat) do parts[#parts + 1] = w end
+    for w in s:gmatch(pat) do
+        parts[#parts + 1] = w
+    end
     return parts
 end
 
 -- 查询辅助码
 local function lookup_aux_code(env, char)
-    if not env.dict then return "" end 
-    if env.aux_cache[char] then return env.aux_cache[char] end
+    if not env.dict then
+        return ""
+    end
+    if env.aux_cache[char] then
+        return env.aux_cache[char]
+    end
     local raw_code = env.dict:lookup(char)
-    if not raw_code or raw_code == "" then return "" end
+    if not raw_code or raw_code == "" then
+        return ""
+    end
     local aux_part = raw_code:match(";([^,]+)") or raw_code:match("^([^;]+)") or ""
     local final_code = aux_part:gsub("[^a-zA-Z]", ""):sub(1, 2):upper()
     env.aux_cache[char] = final_code
@@ -64,31 +78,35 @@ function ForceUpperAux.init(env)
     local config = env.engine.schema.config
     env.trigger_key = config:get_string("force_upper_aux/hotkey") or "Tab"
     env.aux_cache = {}
-    
+
     local dict_name = config:get_string("translator/dictionary") or "wanxiang_pro"
     env.dict = ReverseLookup(dict_name)
-    
-    env.history_first = {}   -- 记录每个长度最初出现的首选
-    env.press_count = 0      
-    env.is_cycling = false   
-    env.snapshot_parts = nil 
+
+    env.history_first = {} -- 记录每个长度最初出现的首选
+    env.press_count = 0
+    env.is_cycling = false
+    env.snapshot_parts = nil
     env.snapshot_current_full = ""
-    
+
     env.on_update = function(ctx)
         -- 调用外部模块函数，如果在功能模式则不记录历史
         -- 这里 env.is_cycling 起到了锁的作用，防止在按快捷键修改输入时陷入循环
-        if env.is_cycling or wanxiang.is_function_mode_active(ctx) then return end
+        if env.is_cycling or wanxiang.is_function_mode_active(ctx) then
+            return
+        end
         if not ctx:is_composing() then
             env.history_first = {}
             env.press_count = 0
             env.is_cycling = false
             return
         end
-        
+
         local parts = get_script_text_parts(ctx)
         local parts_count = #parts
-        if parts_count == 0 then return end
-        
+        if parts_count == 0 then
+            return
+        end
+
         local comp = ctx.composition
         if not comp:empty() then
             local segment = comp:back()
@@ -106,7 +124,7 @@ end
 
 function ForceUpperAux.fini(env)
     -- 在 fini 周期内统一断开连接器，并释放大对象引用，避免内存泄漏
-    if env.update_conn then 
+    if env.update_conn then
         env.update_conn:disconnect()
         env.update_conn = nil
     end
@@ -118,16 +136,22 @@ end
 
 -- 核心逻辑
 function ForceUpperAux.func(key_event, env)
-    if key_event:release() then return 2 end
+    if key_event:release() then
+        return 2
+    end
     local ctx = env.engine.context
-    
+
     -- 功能模式检查
-    if wanxiang.is_function_mode_active(ctx) then return 2 end
+    if wanxiang.is_function_mode_active(ctx) then
+        return 2
+    end
 
     local current_key = key_event:repr()
     if current_key == env.trigger_key then
-        if not ctx:is_composing() then return 2 end
-        
+        if not ctx:is_composing() then
+            return 2
+        end
+
         -- 首次按下捕捉快照
         if env.press_count == 0 then
             env.snapshot_parts = get_script_text_parts(ctx)
@@ -139,31 +163,31 @@ function ForceUpperAux.func(key_event, env)
                 end
             end
         end
-        
+
         local parts = env.snapshot_parts
         if not parts or #parts == 0 then
-            return 2 
+            return 2
         end
-        
+
         env.press_count = env.press_count + 1
         -- 开启循环锁，这样下面修改 ctx.input 触发的 on_update 会被直接拦截
-        env.is_cycling = true 
-        
+        env.is_cycling = true
+
         local parts_count = #parts
         local candidate_text = ""
         local apply_until = 0
-        
+
         if env.press_count % 2 == 1 then
             -- 按一次：全长度 N
             candidate_text = env.snapshot_current_full
-            apply_until = parts_count 
+            apply_until = parts_count
         else
             -- 按两次：回退 N-1
             local n_minus_1 = math.max(1, parts_count - 1)
             candidate_text = env.history_first[n_minus_1] or get_utf8_prefix(env.snapshot_current_full, n_minus_1)
-            apply_until = n_minus_1 
+            apply_until = n_minus_1
         end
-        
+
         -- 性能优化：使用表来收集字符串分片，最后使用 table.concat 一次性拼接
         local new_input_parts = {}
         local text_len = utf8.len(candidate_text) or 0
@@ -179,19 +203,19 @@ function ForceUpperAux.func(key_event, env)
             end
         end
         local new_input = table.concat(new_input_parts)
-        
+
         if new_input ~= "" and new_input ~= ctx.input then
             -- 此时修改 input 会触发 on_update，但会被 env.is_cycling == true 完美拦截
             ctx.input = new_input
         end
-        
-        return 1 
+
+        return 1
     else
         -- 任意其他键按下，重置状态机
         env.press_count = 0
         env.is_cycling = false
         env.snapshot_parts = nil
-        return 2 
+        return 2
     end
 end
 

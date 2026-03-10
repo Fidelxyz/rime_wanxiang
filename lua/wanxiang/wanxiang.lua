@@ -14,7 +14,7 @@ wanxiang.version = "v14.9.0"
 wanxiang.RIME_PROCESS_RESULTS = {
     kRejected = 0, -- 表示处理器明确拒绝了这个按键，停止处理链但不返回 true
     kAccepted = 1, -- 表示处理器成功处理了这个按键，停止处理链并返回 true
-    kNoop = 2,     -- 表示处理器没有处理这个按键，继续传递给下一个处理器
+    kNoop = 2, -- 表示处理器没有处理这个按键，继续传递给下一个处理器
 }
 
 -- 整个生命周期内不变，缓存判断结果
@@ -32,26 +32,24 @@ function wanxiang.is_mobile_device()
         local lower_path = user_data_dir:lower()
         local sys_lower_path = sys_dir:lower()
         -- 主判断：常见移动端输入法
-        if lower_dist == "trime" or
-            lower_dist == "hamster" or
-            lower_dist == "hamster3" or
-            lower_dist == "squirrel" then
+        if lower_dist == "trime" or lower_dist == "hamster" or lower_dist == "hamster3" or lower_dist == "squirrel" then
             return true
         end
 
         -- 补充判断：路径中包含移动设备特征，很可以mac的运行逻辑和手机一球样
-        if lower_path:find("/android/") or
-            lower_path:find("/mobile/") or
-            lower_path:find("/sdcard/") or
-            lower_path:find("/data/storage/") or
-            lower_path:find("/storage/emulated/") or
-            lower_path:find("applications") or
-            lower_path:find("library") then
+        if
+            lower_path:find("/android/")
+            or lower_path:find("/mobile/")
+            or lower_path:find("/sdcard/")
+            or lower_path:find("/data/storage/")
+            or lower_path:find("/storage/emulated/")
+            or lower_path:find("applications")
+            or lower_path:find("library")
+        then
             return true
         end
         -- 补充判断：路径中包含移动设备特征，很可以mac的运行逻辑和手机一球样
-        if sys_lower_path:find("applications") or
-            sys_lower_path:find("library") then
+        if sys_lower_path:find("applications") or sys_lower_path:find("library") then
             return true
         end
         -- 特定平台判断（Android/Linux）
@@ -84,9 +82,7 @@ end
 -- 以 `tag` 方式检测是否处于反查模式
 function wanxiang.is_in_radical_mode(env)
     local seg = env.engine.context.composition:back()
-    return seg and (
-        seg:has_tag("wanxiang_reverse")
-    ) or false
+    return seg and (seg:has_tag("wanxiang_reverse")) or false
 end
 
 ---判断是否在命令模式
@@ -98,9 +94,11 @@ function wanxiang.is_function_mode_active(context)
     end
 
     local seg = context.composition:back()
-    if not seg then return false end
+    if not seg then
+        return false
+    end
 
-    return seg:has_tag("unicode")       -- unicode.lua 输出 Unicode 字符 U+小写字母或数字
+    return seg:has_tag("unicode") -- unicode.lua 输出 Unicode 字符 U+小写字母或数字
 end
 
 ---@param context Context | nil
@@ -111,11 +109,13 @@ function wanxiang.s2t_conversion(context)
     end
 
     local seg = context.composition:back()
-    if not seg then return false end
+    if not seg then
+        return false
+    end
 
-    return seg:has_tag("unicode") or    -- unicode.lua 输出 Unicode 字符 U+小写字母或数字
-        seg:has_tag("punct") or      -- 标点符号 全角半角提示
-        seg:has_tag("wanxiang_reverse")
+    return seg:has_tag("unicode") -- unicode.lua 输出 Unicode 字符 U+小写字母或数字
+        or seg:has_tag("punct") -- 标点符号 全角半角提示
+        or seg:has_tag("wanxiang_reverse")
 end
 ---判断文件是否存在
 function wanxiang.file_exists(filename)
@@ -131,9 +131,8 @@ end
 -- 判断字符是否为汉字
 function wanxiang.IsChineseCharacter(text)
     local codepoint = utf8.codepoint(text)
-    return
-        (codepoint >= 0x4E00 and codepoint <= 0x9FFF)   -- Basic
-        or (codepoint >= 0x3400 and codepoint <= 0x4DBF)  -- Ext A
+    return (codepoint >= 0x4E00 and codepoint <= 0x9FFF) -- Basic
+        or (codepoint >= 0x3400 and codepoint <= 0x4DBF) -- Ext A
         or (codepoint >= 0x20000 and codepoint <= 0x2A6DF) -- Ext B
         or (codepoint >= 0x2A700 and codepoint <= 0x2B73F) -- Ext C
         or (codepoint >= 0x2B740 and codepoint <= 0x2B81F) -- Ext D
@@ -142,10 +141,10 @@ function wanxiang.IsChineseCharacter(text)
         or (codepoint >= 0x30000 and codepoint <= 0x3134F) -- Ext G
         or (codepoint >= 0x31350 and codepoint <= 0x323AF) -- Ext H
         or (codepoint >= 0x2EBF0 and codepoint <= 0x2EE5F) -- Ext I
-        or (codepoint >= 0xF900  and codepoint <= 0xFAFF)  -- Compatibility
+        or (codepoint >= 0xF900 and codepoint <= 0xFAFF) -- Compatibility
         or (codepoint >= 0x2F800 and codepoint <= 0x2FA1F) -- Compatibility Supplement
-        or (codepoint >= 0x2E80  and codepoint <= 0x2EFF)  -- Radicals Supplement
-        or (codepoint >= 0x2F00  and codepoint <= 0x2FDF)  -- Kangxi Radicals
+        or (codepoint >= 0x2E80 and codepoint <= 0x2EFF) -- Radicals Supplement
+        or (codepoint >= 0x2F00 and codepoint <= 0x2FDF) -- Kangxi Radicals
 end
 
 ---按照优先顺序获取文件：用户目录 > 系统目录
@@ -153,12 +152,14 @@ end
 ---@retur string | nil
 -- 辅助函数：检测路径是否为绝对路径（以 / 或盘符开头）
 local function is_absolute_path(path)
-    if not path then return false end
+    if not path then
+        return false
+    end
     if path:sub(1, 1) == "/" or path:sub(1, 1) == "\\" then
         return true
     end
     if path:match("^[a-zA-Z]:[\\/]") then
-        return true 
+        return true
     end
     return false
 end
@@ -166,7 +167,7 @@ end
 function wanxiang.get_filename_with_fallback(filename)
     local _path = filename:gsub("^[\\/]+", "")
     local user_dir = rime_api.get_user_data_dir()
-    
+
     if not is_absolute_path(user_dir) then
         return filename
     end
@@ -177,7 +178,7 @@ function wanxiang.get_filename_with_fallback(filename)
     end
 
     local shared_dir = rime_api.get_shared_data_dir()
-    
+
     if not is_absolute_path(shared_dir) then
         return filename
     end
@@ -198,7 +199,9 @@ function wanxiang.load_file_with_fallback(filename, mode)
 
     local file, err
     local function close()
-        if not file then return end
+        if not file then
+            return
+        end
         file:close()
         file = nil
     end
@@ -218,12 +221,16 @@ local USER_ID_DEFAULT = "unknown"
 ---@return string
 function wanxiang.get_user_id()
     local user_id = rime_api.get_user_id()
-    if user_id ~= USER_ID_DEFAULT then return user_id end
+    if user_id ~= USER_ID_DEFAULT then
+        return user_id
+    end
 
     local user_data_dir = rime_api.get_user_data_dir()
     local installation_path = user_data_dir .. "/installation.yaml"
     local installation_file, _ = io.open(installation_path, "r")
-    if not installation_file then return user_id end
+    if not installation_file then
+        return user_id
+    end
 
     for line in installation_file:lines() do
         local key, value = line:match('^([^#:]+):%s+"?([^"]%S+[^"])"?')
@@ -253,8 +260,8 @@ wanxiang.INPUT_METHOD_MARKERS = {
     ["ⅲ"] = "ⅲ", -- 间接辅助标记：命中则额外返回 md="ⅲ"
 }
 
-local __input_type_cache = {}      -- 缓存首个命中的 id（兼容旧用法）
-local __input_md_cache   = {}      -- 新增：是否命中“ⅲ”（若命中则为 "ⅲ"，否则为 nil）
+local __input_type_cache = {} -- 缓存首个命中的 id（兼容旧用法）
+local __input_md_cache = {} -- 新增：是否命中“ⅲ”（若命中则为 "ⅲ"，否则为 nil）
 
 --- 根据 speller/algebra 中的特殊符号返回输入类型：
 --- - 若未命中“ⅲ”，只返回 id（保持旧行为）
@@ -270,15 +277,15 @@ function wanxiang.get_input_method_type(env)
     if cached_id then
         local cached_md = __input_md_cache[schema_id]
         if cached_md then
-            return cached_id, cached_md   -- 返回两个值：id, "ⅲ"
+            return cached_id, cached_md -- 返回两个值：id, "ⅲ"
         else
-            return cached_id              -- 只返回 id
+            return cached_id -- 只返回 id
         end
     end
 
     local cfg = env.engine.schema.config
     local result_id = "unknown"
-    local md        = nil                 -- 只有命中“ⅲ”时设为 "ⅲ"
+    local md = nil -- 只有命中“ⅲ”时设为 "ⅲ"
 
     local n = cfg:get_list_size("speller/algebra")
     for i = 0, n - 1 do
@@ -288,10 +295,10 @@ function wanxiang.get_input_method_type(env)
             for symbol, id in pairs(wanxiang.INPUT_METHOD_MARKERS) do
                 if s:find(symbol, 1, true) then
                     if symbol == "ⅲ" or id == "ⅲ" then
-                        md = "ⅲ"                  -- 记录辅助标记
+                        md = "ⅲ" -- 记录辅助标记
                     else
                         if result_id == "unknown" then
-                            result_id = id        -- 只记录第一个“正常映射”的 id
+                            result_id = id -- 只记录第一个“正常映射”的 id
                         end
                     end
                 end
@@ -301,7 +308,7 @@ function wanxiang.get_input_method_type(env)
 
     -- 写缓存
     __input_type_cache[schema_id] = result_id
-    __input_md_cache[schema_id]   = md   -- 命中则为 "ⅲ"，否则为 nil
+    __input_md_cache[schema_id] = md -- 命中则为 "ⅲ"，否则为 nil
 
     -- 返回：命中“ⅲ”→两个值；否则一个值
     if md then
@@ -318,17 +325,25 @@ function RegexParser.normalize(regex)
     local p = regex
     p = p:gsub("%(%?%:", "%(") -- 清理 (?:
     -- 基础转义
-    p = p:gsub("\\d", "%%d"); p = p:gsub("\\D", "%%D")
-    p = p:gsub("\\w", "%%w"); p = p:gsub("\\W", "%%W")
-    p = p:gsub("\\s", "%%s"); p = p:gsub("\\S", "%%S")
+    p = p:gsub("\\d", "%%d")
+    p = p:gsub("\\D", "%%D")
+    p = p:gsub("\\w", "%%w")
+    p = p:gsub("\\W", "%%W")
+    p = p:gsub("\\s", "%%s")
+    p = p:gsub("\\S", "%%S")
     -- 符号转义 (注意：\? -> %?，保留字面量问号)
-    p = p:gsub("\\%.", "%%."); p = p:gsub("\\%^", "%%^")
-    p = p:gsub("\\%$", "%%$"); p = p:gsub("\\%*", "%%*")
-    p = p:gsub("\\%+", "%%+"); p = p:gsub("\\%-", "%%-")
+    p = p:gsub("\\%.", "%%.")
+    p = p:gsub("\\%^", "%%^")
+    p = p:gsub("\\%$", "%%$")
+    p = p:gsub("\\%*", "%%*")
+    p = p:gsub("\\%+", "%%+")
+    p = p:gsub("\\%-", "%%-")
     p = p:gsub("\\%?", "%%?")
-    p = p:gsub("\\%(", "%%("); p = p:gsub("\\%)", "%%)")
-    p = p:gsub("\\%[", "%%["); p = p:gsub("\\%]", "%%]")
-    
+    p = p:gsub("\\%(", "%%(")
+    p = p:gsub("\\%)", "%%)")
+    p = p:gsub("\\%[", "%%[")
+    p = p:gsub("\\%]", "%%]")
+
     return p
 end
 
@@ -350,7 +365,7 @@ local function expand_optional(pattern_list)
         local len = #pat
         while i <= len do
             local char = string.sub(pat, i, i)
-            
+
             if char == "%" then
                 -- 转义符，跳过下一个
                 i = i + 2
@@ -358,13 +373,13 @@ local function expand_optional(pattern_list)
                 -- 集合 [...]
                 local j = i + 1
                 while j <= len do
-                    if string.sub(pat, j, j) == "]" and string.sub(pat, j-1, j-1) ~= "%" then
+                    if string.sub(pat, j, j) == "]" and string.sub(pat, j - 1, j - 1) ~= "%" then
                         break
                     end
                     j = j + 1
                 end
                 -- 检查后面是不是 ?
-                if j < len and string.sub(pat, j+1, j+1) == "?" then
+                if j < len and string.sub(pat, j + 1, j + 1) == "?" then
                     atom_start = i
                     atom_end = j
                     q_idx = j + 1
@@ -378,7 +393,7 @@ local function expand_optional(pattern_list)
                     q_idx = i
                     atom_end = i - 1
                     -- 判断前一个字符是否是转义结果 (如 %d)
-                    if atom_end > 1 and string.sub(pat, atom_end-1, atom_end-1) == "%" then
+                    if atom_end > 1 and string.sub(pat, atom_end - 1, atom_end - 1) == "%" then
                         atom_start = atom_end - 1
                     else
                         atom_start = atom_end
@@ -397,7 +412,7 @@ local function expand_optional(pattern_list)
             local p1 = string.sub(pat, 1, atom_end) .. string.sub(pat, q_idx + 1)
             -- 2. 删除原子 (去掉 原子+?)
             local p2 = string.sub(pat, 1, atom_start - 1) .. string.sub(pat, q_idx + 1)
-            
+
             table.insert(result, p1)
             table.insert(result, p2)
         else
@@ -406,10 +421,12 @@ local function expand_optional(pattern_list)
     end
 
     if has_expansion then
-        if #result > 100 then return result end
+        if #result > 100 then
+            return result
+        end
         return expand_optional(result)
     end
-    
+
     return result
 end
 
@@ -420,16 +437,25 @@ function RegexParser.smart_split(str, sep)
     local brack_depth = 0
     for i = 1, #str do
         local char = string.sub(str, i, i)
-        local prev = (i > 1) and string.sub(str, i-1, i-1) or ""
+        local prev = (i > 1) and string.sub(str, i - 1, i - 1) or ""
         if prev == "%" then
             current = current .. char
         else
-            if char == '(' then paren_depth = paren_depth + 1 end
-            if char == ')' then paren_depth = paren_depth - 1 end
-            if char == '[' then brack_depth = brack_depth + 1 end
-            if char == ']' then brack_depth = brack_depth - 1 end
+            if char == "(" then
+                paren_depth = paren_depth + 1
+            end
+            if char == ")" then
+                paren_depth = paren_depth - 1
+            end
+            if char == "[" then
+                brack_depth = brack_depth + 1
+            end
+            if char == "]" then
+                brack_depth = brack_depth - 1
+            end
             if char == sep and paren_depth == 0 and brack_depth == 0 then
-                table.insert(results, current); current = ""
+                table.insert(results, current)
+                current = ""
             else
                 current = current .. char
             end
@@ -446,14 +472,19 @@ function RegexParser.expand_groups(str_list)
         local depth = 0
         for i = 1, #str do
             local char = string.sub(str, i, i)
-            local prev = (i > 1) and string.sub(str, i-1, i-1) or ""
+            local prev = (i > 1) and string.sub(str, i - 1, i - 1) or ""
             if prev ~= "%" then
                 if char == "(" then
-                    if depth == 0 then s_idx = i end
+                    if depth == 0 then
+                        s_idx = i
+                    end
                     depth = depth + 1
                 elseif char == ")" then
                     depth = depth - 1
-                    if depth == 0 and s_idx then e_idx = i; break end
+                    if depth == 0 and s_idx then
+                        e_idx = i
+                        break
+                    end
                 end
             end
         end
@@ -473,19 +504,27 @@ function RegexParser.expand_groups(str_list)
 end
 
 local function ensure_anchor(p)
-    if not p or p == "" then return p end
+    if not p or p == "" then
+        return p
+    end
     -- 补 $
     local last = string.sub(p, -1)
     local prev = string.sub(p, -2, -2)
-    if last ~= "$" or (last == "$" and prev == "%") then p = p .. "$" end
+    if last ~= "$" or (last == "$" and prev == "%") then
+        p = p .. "$"
+    end
     -- 补 ^
     local first = string.sub(p, 1, 1)
-    if first ~= "^" then p = "^" .. p end
+    if first ~= "^" then
+        p = "^" .. p
+    end
     return p
 end
 
 function RegexParser.convert(regex_str)
-    if not regex_str or regex_str == "" then return {} end
+    if not regex_str or regex_str == "" then
+        return {}
+    end
     local norm = RegexParser.normalize(regex_str)
     -- 1. 拆分 |
     local list = RegexParser.smart_split(norm, "|")
@@ -494,14 +533,20 @@ function RegexParser.convert(regex_str)
     local changed = true
     while changed and loop < 5 do
         local new_list = RegexParser.expand_groups(list)
-        if #new_list > #list then list = new_list else changed = false end
+        if #new_list > #list then
+            list = new_list
+        else
+            changed = false
+        end
         loop = loop + 1
     end
     -- 3. 展开 ? 量词
     -- 这会将带 ? 的正则裂变成多个确定的正则
     list = expand_optional(list)
     -- 4. 补全锚点
-    for i, p in ipairs(list) do list[i] = ensure_anchor(p) end
+    for i, p in ipairs(list) do
+        list[i] = ensure_anchor(p)
+    end
     return list
 end
 
@@ -509,15 +554,24 @@ end
 function wanxiang.load_regex_patterns(config, path)
     local patterns = {}
     local map = config:get_map(path)
-    if not map then return patterns end
+    if not map then
+        return patterns
+    end
     local keys = map:keys()
-    if not keys then return patterns end
-    
+    if not keys then
+        return patterns
+    end
+
     local count = 0
     local is_ud = (type(keys) == "userdata")
     if is_ud then
-        if keys.size then count = keys.size 
-        else pcall(function() count = keys:size() end) end
+        if keys.size then
+            count = keys.size
+        else
+            pcall(function()
+                count = keys:size()
+            end)
+        end
     else
         count = #keys
     end
@@ -526,10 +580,16 @@ function wanxiang.load_regex_patterns(config, path)
         local k_str
         if is_ud then
             local it = keys:get_value_at(i)
-            if it then k_str = it.value end
-            if not k_str then pcall(function() k_str = keys[i] end) end
+            if it then
+                k_str = it.value
+            end
+            if not k_str then
+                pcall(function()
+                    k_str = keys[i]
+                end)
+            end
         else
-            k_str = keys[i+1]
+            k_str = keys[i + 1]
         end
 
         if k_str then

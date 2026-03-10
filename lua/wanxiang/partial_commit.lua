@@ -5,12 +5,36 @@ local wanxiang = require("wanxiang/wanxiang")
 local M = {}
 
 -- 数字键映射（主键盘 + 小键盘）
-local DIGIT = { [0x31]=1,[0x32]=2,[0x33]=3,[0x34]=4,[0x35]=5,[0x36]=6,[0x37]=7,[0x38]=8,[0x39]=9,[0x30]=10 }
-local KP    = { [0xFFB1]=1,[0xFFB2]=2,[0xFFB3]=3,[0xFFB4]=4,[0xFFB5]=5,[0xFFB6]=6,[0xFFB7]=7,[0xFFB8]=8,[0xFFB9]=9,[0xFFB0]=10 }
+local DIGIT = {
+    [0x31] = 1,
+    [0x32] = 2,
+    [0x33] = 3,
+    [0x34] = 4,
+    [0x35] = 5,
+    [0x36] = 6,
+    [0x37] = 7,
+    [0x38] = 8,
+    [0x39] = 9,
+    [0x30] = 10,
+}
+local KP = {
+    [0xFFB1] = 1,
+    [0xFFB2] = 2,
+    [0xFFB3] = 3,
+    [0xFFB4] = 4,
+    [0xFFB5] = 5,
+    [0xFFB6] = 6,
+    [0xFFB7] = 7,
+    [0xFFB8] = 8,
+    [0xFFB9] = 9,
+    [0xFFB0] = 10,
+}
 
 -- 工具：字符串缩略 / 获取分隔符 / 安全转义 / 清洗 raw
 local function short(s)
-    if not s then return "" end
+    if not s then
+        return ""
+    end
     if #s > 120 then
         return s:sub(1, 117) .. "..."
     end
@@ -20,25 +44,33 @@ end
 local function get_delimiters(ctx)
     local cfg = ctx.engine and ctx.engine.schema and ctx.engine.schema.config
     local delimiter = (cfg and cfg:get_string("speller/delimiter")) or " '"
-    return delimiter:sub(1, 1), delimiter:sub(2, 2)  -- auto, manual
+    return delimiter:sub(1, 1), delimiter:sub(2, 2) -- auto, manual
 end
 
 -- 放进字符类 [...] 使用的转义（只转义 % ^ ] -）
 local function esc_class(c)
-    if not c or c == "" then return "" end
+    if not c or c == "" then
+        return ""
+    end
     return (c:gsub("([%%%^%]%-])", "%%%1"))
 end
 
 -- 普通模式串位置的单字符转义（最小化：仅非字母数字下划线时转义）
 local function esc_pat(c)
-    if not c or c == "" then return "" end
-    if c:match("[%w_]") then return c end
+    if not c or c == "" then
+        return ""
+    end
+    if c:match("[%w_]") then
+        return c
+    end
     return (c:gsub("(%W)", "%%%1"))
 end
 
 -- 清洗整串 raw：去掉手动分隔符（如 "'"）
 local function clean_raw(ctx, raw)
-    if not raw or raw == "" then return "" end
+    if not raw or raw == "" then
+        return ""
+    end
     local _, manual = get_delimiters(ctx)
     if manual and #manual == 1 then
         raw = raw:gsub(esc_pat(manual), "")
@@ -58,9 +90,9 @@ local function utf8_head(s, n)
 end
 -- 生成 target：按分隔符切 preedit/script_text，取前 n 个并去分隔符拼接
 local function script_prefix(ctx, n)
-    local raw_in    = ctx.input or ""
-    local prop_key  = ctx:get_property("sequence_preedit_key") or ""
-    local prop_val  = ctx:get_property("sequence_preedit_val") or ""
+    local raw_in = ctx.input or ""
+    local prop_key = ctx:get_property("sequence_preedit_key") or ""
+    local prop_val = ctx:get_property("sequence_preedit_val") or ""
     local script_txt = ctx:get_script_text() or ""
 
     local s
@@ -69,14 +101,20 @@ local function script_prefix(ctx, n)
     else
         s = script_txt
     end
-    if s == "" then return "" end
+    if s == "" then
+        return ""
+    end
 
     local auto, manual = get_delimiters(ctx)
     local pat = "[^" .. esc_class(auto) .. esc_class(manual) .. "%s]+"
 
     local parts = {}
-    for w in s:gmatch(pat) do parts[#parts + 1] = w end
-    if #parts == 0 then return "" end
+    for w in s:gmatch(pat) do
+        parts[#parts + 1] = w
+    end
+    if #parts == 0 then
+        return ""
+    end
 
     local upto = math.min(n, #parts)
     local target = table.concat({ table.unpack(parts, 1, upto) }, "")
@@ -84,9 +122,13 @@ local function script_prefix(ctx, n)
 end
 -- 对齐“去分隔符后的 raw_clean”与 target；返回消耗长度（基于 raw_clean）
 local function eat_len_by_target(ctx, target)
-    if target == "" then return 0 end
+    if target == "" then
+        return 0
+    end
     local raw = ctx.input or ""
-    if raw == "" then return 0 end
+    if raw == "" then
+        return 0
+    end
 
     local clean = clean_raw(ctx, raw)
     local i, j, Lc, Lt = 1, 1, #clean, #target
@@ -96,7 +138,9 @@ local function eat_len_by_target(ctx, target)
         end
         i, j = i + 1, j + 1
     end
-    if j <= Lt then return 0 end
+    if j <= Lt then
+        return 0
+    end
     return i - 1
 end
 
@@ -116,7 +160,9 @@ function M.init(env)
     local ctx = env.engine.context
 
     env._cpc_update_conn = ctx.update_notifier:connect(function(c)
-        if not has_pending(env) then return end
+        if not has_pending(env) then
+            return
+        end
         local rest = take_pending(env) or ""
 
         c.input = rest
@@ -129,13 +175,14 @@ function M.init(env)
     end)
 
     env._cpc_key_handler = function(key)
-
         if not key:ctrl() or key:release() then
             return wanxiang.RIME_PROCESS_RESULTS.kNoop
         end
 
         local n = DIGIT[key.keycode] or KP[key.keycode]
-        if not n then return wanxiang.RIME_PROCESS_RESULTS.kNoop end
+        if not n then
+            return wanxiang.RIME_PROCESS_RESULTS.kNoop
+        end
 
         local c = env.engine.context
         if not c:is_composing() then

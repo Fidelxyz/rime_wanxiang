@@ -37,11 +37,13 @@ function AP.is_chinese_only(text)
 
     for _, cp in utf8.codes(text) do
         -- 常用汉字区 + 扩展 A/B/C/D/E/F/G
-        if not (
-            (cp >= 0x4E00 and cp <= 0x9FFF) or -- CJK Unified Ideographs
-            (cp >= 0x3400 and cp <= 0x4DBF) or -- CJK Ext-A
-            (cp >= 0x20000 and cp <= 0x2EBEF)  -- CJK Ext-B~G
-        ) then
+        if
+            not (
+                (cp >= 0x4E00 and cp <= 0x9FFF) -- CJK Unified Ideographs
+                or (cp >= 0x3400 and cp <= 0x4DBF) -- CJK Ext-A
+                or (cp >= 0x20000 and cp <= 0x2EBEF) -- CJK Ext-B~G
+            )
+        then
             return false
         end
     end
@@ -50,13 +52,11 @@ end
 
 function AP.init(env)
     local config = env.engine.schema.config
-    local ctx    = env.engine.context
+    local ctx = env.engine.context
 
     -- 中文自动造词的开关（只控制 add_user_dict）
-    local enable_auto_phrase =
-        config:get_bool("add_user_dict/enable_auto_phrase") or false
-    local enable_user_dict  =
-        config:get_bool("add_user_dict/enable_user_dict") or false
+    local enable_auto_phrase = config:get_bool("add_user_dict/enable_auto_phrase") or false
+    local enable_user_dict = config:get_bool("add_user_dict/enable_user_dict") or false
 
     -- 中文：add_user_dict（受 add_* 开关影响）
     if enable_auto_phrase and enable_user_dict then
@@ -113,13 +113,13 @@ end
 
 -- 入口
 function AP.func(input, env)
-    local config  = env.engine.schema.config
+    local config = env.engine.schema.config
     local context = env.engine.context
 
-    local use_comment_cache = env.memory ~= nil  -- 只有中文造词才需要缓存注释
+    local use_comment_cache = env.memory ~= nil -- 只有中文造词才需要缓存注释
 
     for cand in input:iter() do
-        local genuine_cand    = cand:get_genuine()
+        local genuine_cand = cand:get_genuine()
         local initial_comment = genuine_cand.comment
 
         if use_comment_cache then
@@ -137,10 +137,10 @@ function AP.commit_handler(ctx, env)
         return
     end
 
-    local segments       = ctx.composition:toSegmentation():get_segments()
+    local segments = ctx.composition:toSegmentation():get_segments()
     local segments_count = #segments
-    local commit_text    = ctx:get_commit_text() or ""
-    local raw_input      = ctx.input or ""
+    local commit_text = ctx:get_commit_text() or ""
+    local raw_input = ctx.input or ""
 
     ---------------------------------------------------
     -- ① 英文造词（保持原样，仍用硬编码 "\"）
@@ -152,8 +152,8 @@ function AP.commit_handler(ctx, env)
         if code_body ~= "" and env.en_memory then
             local function save_entry(code)
                 local entry = DictEntry()
-                entry.text        = commit_text
-                entry.weight      = 1
+                entry.text = commit_text
+                entry.weight = 1
                 entry.custom_code = code .. " "
                 env.en_memory:update_userdict(entry, 1, "")
             end
@@ -193,7 +193,7 @@ function AP.commit_handler(ctx, env)
     local escaped_delimiter = utf8.char(utf8.codepoint(delimiter)):gsub("(%W)", "%%%1")
 
     for i = 1, segments_count do
-        local seg  = segments[i]
+        local seg = segments[i]
         local cand = seg:get_selected_candidate()
 
         -- 无候选：可能是符号段
@@ -243,8 +243,8 @@ function AP.commit_handler(ctx, env)
     end
 
     local dictEntry = DictEntry()
-    dictEntry.text        = commit_text
-    dictEntry.weight      = 1
+    dictEntry.text = commit_text
+    dictEntry.weight = 1
     dictEntry.custom_code = table.concat(code_table, " ") .. " "
     env.memory:update_userdict(dictEntry, 1, "")
 

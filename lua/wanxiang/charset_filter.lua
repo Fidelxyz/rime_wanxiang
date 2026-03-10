@@ -19,7 +19,9 @@ local utf8_len = utf8.len
 
 -- 检查交集
 local function check_intersection(db_attr, config_base_set)
-    if not db_attr or db_attr == "" then return false end
+    if not db_attr or db_attr == "" then
+        return false
+    end
     for i = 1, #db_attr do
         local c = sub(db_attr, i, i)
         if config_base_set[c] then
@@ -31,10 +33,14 @@ end
 
 -- 核心判定逻辑：检查单个 codepoint 是否在允许的字符集中（支持多开关并集）
 local function codepoint_in_charset(env, ctx, codepoint, text)
-    if not env.charset_db then return true end
+    if not env.charset_db then
+        return true
+    end
 
     local filters = env.filters
-    if not filters or #filters == 0 then return true end
+    if not filters or #filters == 0 then
+        return true
+    end
 
     local active_options_count = 0
     local is_allowed = false
@@ -93,27 +99,37 @@ end
 
 -- 检查单字/全词是否符合字符集（供单字快速判定用）
 local function in_charset(env, ctx, text)
-    if not text or text == "" then return true end
+    if not text or text == "" then
+        return true
+    end
 
     local cp_count = 0
     local target_cp = nil
     for _, cp in utf8_codes(text) do
         cp_count = cp_count + 1
-        if cp_count > 1 then return true end -- 大于一个字交由词组专用逻辑处理
+        if cp_count > 1 then
+            return true
+        end -- 大于一个字交由词组专用逻辑处理
         target_cp = cp
     end
 
-    if cp_count == 0 or not target_cp then return true end
+    if cp_count == 0 or not target_cp then
+        return true
+    end
     local char = utf8.char(target_cp)
 
-    if not wanxiang.IsChineseCharacter(char) then return true end
+    if not wanxiang.IsChineseCharacter(char) then
+        return true
+    end
 
     return codepoint_in_charset(env, ctx, target_cp, char)
 end
 
 -- 精准探测：检查词组中是否包含生僻字
 local function check_text_has_rare_char(env, ctx, text)
-    if not text or text == "" then return false end
+    if not text or text == "" then
+        return false
+    end
     for _, codepoint in utf8_codes(text) do
         local character = utf8.char(codepoint)
         if wanxiang.IsChineseCharacter(character) then
@@ -131,43 +147,54 @@ end
 
 function M.init(env)
     local cfg = env.engine and env.engine.schema and env.engine.schema.config
-    
+
     local dist = (rime_api and rime_api.get_distribution_code_name and rime_api.get_distribution_code_name() or ""):lower()
     local charsetFile
     if dist == "weasel" then
         charsetFile = "lua/data/charset.reverse.bin"
     else
-        charsetFile = wanxiang.get_filename_with_fallback("lua/data/charset.reverse.bin") or "lua/data/charset.reverse.bin"
+        charsetFile = wanxiang.get_filename_with_fallback("lua/data/charset.reverse.bin")
+            or "lua/data/charset.reverse.bin"
     end
 
     env.charset_db = nil
     if ReverseDb then
-        local ok, db = pcall(function() return ReverseDb(charsetFile) end)
-        if ok and db then env.charset_db = db end
+        local ok, db = pcall(function()
+            return ReverseDb(charsetFile)
+        end)
+        if ok and db then
+            env.charset_db = db
+        end
     end
-    
+
     env.db_memo = {}
     env.filters = {}
     env.phrase_history_dict = {}
 
-    if not cfg then return end
+    if not cfg then
+        return
+    end
 
     local root_path = "charset"
     local list = cfg:get_list(root_path)
-    if not list then return end
+    if not list then
+        return
+    end
 
     for i = 0, list.size - 1 do
         local entry_path = root_path .. "/@" .. i
         local triggers = {}
-        local opts_keys = {"option", "options"}
-        
+        local opts_keys = { "option", "options" }
+
         for _, key in ipairs(opts_keys) do
             local key_path = entry_path .. "/" .. key
             local sub_list = cfg:get_list(key_path)
             if sub_list then
                 for k = 0, sub_list.size - 1 do
                     local val = cfg:get_string(key_path .. "/@" .. k)
-                    if val and val ~= "" then table.insert(triggers, val) end
+                    if val and val ~= "" then
+                        table.insert(triggers, val)
+                    end
                 end
             else
                 if cfg:get_bool(key_path) == true then
@@ -200,7 +227,9 @@ function M.init(env)
                     for k = 0, sl.size - 1 do
                         local val = cfg:get_string(lp .. "/@" .. k)
                         if val and val ~= "" then
-                            for _, cp in utf8_codes(val) do map[cp] = true end
+                            for _, cp in utf8_codes(val) do
+                                map[cp] = true
+                            end
                         end
                     end
                 end
@@ -210,10 +239,10 @@ function M.init(env)
             load_list_to_map("blacklist", rule_ban)
 
             table.insert(env.filters, {
-                options  = triggers,
+                options = triggers,
                 base_set = rule_base_set,
-                add      = rule_add,
-                ban      = rule_ban
+                add = rule_add,
+                ban = rule_ban,
             })
         end
     end
@@ -252,16 +281,16 @@ function M.func(input, env)
     if wanxiang and wanxiang.s2t_conversion then
         is_functional = wanxiang.s2t_conversion(ctx)
     end
-    
-    local charset_active = (env.filters and #env.filters > 0) and (not is_functional)
-    
+
+    local charset_active = (env.filters and #env.filters > 0) and not is_functional
+
     if #code == 5 and code:sub(-1):find("[^%w]") then
         charset_active = false
     end
 
     -- 3. 遍历候选词
     local has_recorded_history = false -- 【修复点】：只有第一个有效产出的词才记入历史
-    
+
     -- 内部帮助函数：记录历史并推入管道
     local function yield_and_record(cand, text)
         if not has_recorded_history and text and text ~= "" and (utf8_len(text) or 0) >= 1 then
@@ -273,7 +302,7 @@ function M.func(input, env)
 
     for cand in input:iter() do
         local text = cand.text
-        
+
         -- 如果未开启过滤，直接放行并记录历史
         if not charset_active or text == "" then
             yield_and_record(cand, text)
@@ -288,7 +317,7 @@ function M.func(input, env)
             else
                 -- 词组过滤
                 local has_rare_character = check_text_has_rare_char(env, ctx, text)
-                
+
                 if not has_rare_character then
                     -- 不含生僻字，直接放行
                     yield_and_record(cand, text)
@@ -310,10 +339,10 @@ function M.func(input, env)
                         if #preedit_text > 1 and preedit_text:sub(-1):match("[%w%p]") then
                             preedit_text = sub(preedit_text, 1, -2) .. " " .. sub(preedit_text, -1)
                         end
-                        
+
                         local nc = Candidate(cand.type, cand.start, cand._end, fallback_text, cand.comment or "")
                         nc.preedit = preedit_text
-                        
+
                         -- 验证兜底词自身不是生僻词
                         if in_charset(env, ctx, nc.text) then
                             yield_and_record(nc, nc.text)
