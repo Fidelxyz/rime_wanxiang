@@ -187,3 +187,8 @@ but `snake_case` is the dominant convention. Follow the existing style in the fi
    intentional and should be maintained.
 7. **Conventional commits** — Use the format: `feat:`, `fix:`, `dict:`, `perf:`, `refactor:`,
    `docs:`, `chore:`, `ci:`. Messages may be in Chinese.
+8. **Release file exclusions** — Markdown (`*.md`) and image (`*.jpg`, `*.png`) files are
+   excluded from release ZIP packages in `release-build.sh`. When adding or renaming
+   documentation or image files, update the `--exclude` and `--include` patterns in the rsync
+   calls within that script to ensure the new files are properly excluded from (or included in)
+   the release packages.
