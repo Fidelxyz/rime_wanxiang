@@ -40,7 +40,7 @@
 
 ### 创新 Lua 扩展
 
-成对符号包裹首选、多类型 Tips、输入后反查、OpenCC 替代、超级注释、手动实时排序、无感造词。
+成对符号包裹首选、输入后反查、OpenCC 替代、超级注释、手动实时排序、无感造词。
 
 > 各功能的具体实现见下方"功能一览"各节。
 
@@ -195,17 +195,6 @@
 |----------|------|
 | `lua/wanxiang/super_processor.lua` | 快符处理逻辑（`quick_symbol_text` 映射） |
 | `wanxiang.schema.yaml` | `quick_symbol_text` 自定义映射段 |
-
-### 超级 Tips
-
-表情、化学式、翻译、简码提示等，通过自定义按键直接上屏，不占候选框。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_tips.lua` | Tips 系统（257 行），LevelDB 数据库 `lua/tips.userdb` |
-| `lua/data/tips_show.txt` | Tips 自带数据 |
-| `lua/data/tips_user.txt预留自定义文件` | Tips 用户自定义数据 |
-| `wanxiang.schema.yaml` | `tips` 段配置（`disabled_types`、`tips_key`）、Ctrl+t 开关 |
 
 ### 短语格式化 Lua
 
@@ -455,6 +444,17 @@ Ctrl+1~0 上屏首选前 N 个字，保留后续编码。
 ## 已移除功能
 
 以下功能已从本仓库中移除。保留记录以便从上游合并时参考。
+
+### 超级 Tips
+
+表情、化学式、翻译、简码提示等，通过自定义按键直接上屏，不占候选框。
+
+| 已删除文件/配置 | 说明 |
+|-----------------|------|
+| `lua/wanxiang/super_tips.lua` | Tips 系统（257 行），LevelDB 数据库 `lua/tips.userdb` |
+| `lua/data/tips_show.txt` | Tips 自带数据（7009 行） |
+| `lua/data/tips_user.txt预留自定义文件` | Tips 用户自定义数据（已在前序提交中删除） |
+| `wanxiang.schema.yaml` 等 | `tips` 段配置（`disabled_types`、`tips_key`）、Ctrl+t 开关、`super_tips` 开关与处理器 |
 
 ### 时间日期 Lua（shijian）
 
