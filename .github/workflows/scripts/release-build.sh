@@ -22,7 +22,7 @@ package_schema_base() {
   rm -rf "$OUT_DIR"
   mkdir -p "$OUT_DIR"
 
-  # 1) custom/：仅拷贝 yaml/md/jpg/png，排除指定文件（保留目录结构）
+  # 1) custom/：仅拷贝 yaml，排除指定文件（保留目录结构）
   mkdir -p "$OUT_DIR/custom"
   rsync -av --prune-empty-dirs \
     --include='*/' \
@@ -31,21 +31,21 @@ package_schema_base() {
     --exclude='wanxiang_pro.custom.yaml' \
     --exclude='wanxiang_pro.dict.yaml' \
     --exclude='wanxiang_pro.schema.yaml' \
-    --include='*.yaml' --include='*.md' --include='*.jpg' --include='*.png' \
+    --include='*.yaml' \
     --exclude='*' \
     "$CUSTOM_DIR/" "$OUT_DIR/custom/"
 
   # 2) 根目录 → $OUT_DIR（不排 dicts/），排除若干
   OUT_BASE="$(basename "$OUT_DIR")"
   rsync -av --ignore-existing \
-    --exclude='/.*' \
-    --exclude='/dist/' \
-    --exclude='/release-please-config.json' \
-    --exclude='/pro-*-fuzhu-dicts' \
-    --exclude='/chaifen' \
-    --exclude='/CHANGELOG.md' \
+    --exclude='.*' \
     --exclude='/custom' \
-    --exclude='/LICENSE' \
+    --exclude='/dist' \
+    --exclude='/pro-*-fuzhu-dicts' \
+    --exclude='release-please-config.json' \
+    --exclude='AGENTS.md' \
+    --exclude='CHANGELOG.md' \
+    --exclude='FEATURES.md' \
     --exclude="/$OUT_BASE" \
     "$ROOT_DIR/" "$OUT_DIR/"
 }
@@ -82,7 +82,7 @@ package_schema_pro() {
     [[ -f "$src" ]] && cp "$src" "$dst"
   done
 
-  # 3) custom/：仅拷贝 yaml/md/jpg/png，排除若干（保留目录结构）
+  # 3) custom/：仅拷贝 yaml，排除若干（保留目录结构）
   mkdir -p "$OUT_DIR/custom"
   rsync -av --prune-empty-dirs \
     --include='*/' \
@@ -91,23 +91,24 @@ package_schema_pro() {
     --exclude='wanxiang_chaifen.schema.yaml' \
     --exclude='wanxiang_pro.dict.yaml' \
     --exclude='wanxiang_pro.schema.yaml' \
-    --include='*.yaml' --include='*.md' --include='*.jpg' --include='*.png' \
+    --include='*.yaml' \
     --exclude='*' \
     "$ROOT_DIR/custom/" "$OUT_DIR/custom/"
 
   # 4) 根目录 → $OUT_DIR（排除若干）
   OUT_BASE="$(basename "$OUT_DIR")"
   rsync -av --ignore-existing \
-    --exclude='/.*' \
-    --exclude='/dist/' \
+    --exclude='.*' \
+    --exclude='/custom' \
+    --exclude='/dist' \
     --exclude='/dicts' \
+    --exclude='/pro-*-fuzhu-dicts' \
     --exclude='release-please-config.json' \
-    --exclude='pro-*-fuzhu-dicts' \
+    --exclude='AGENTS.md' \
     --exclude='CHANGELOG.md' \
+    --exclude='FEATURES.md' \
     --exclude='wanxiang.dict.yaml' \
     --exclude='wanxiang.schema.yaml' \
-    --exclude='custom' \
-    --exclude='LICENSE' \
     --exclude="/$OUT_BASE" \
     "$ROOT_DIR/" "$OUT_DIR/"
 
