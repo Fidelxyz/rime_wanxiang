@@ -1,10 +1,8 @@
 # Rime default settings
 # encoding: utf-8
 
-
 # 要比共享目录的同名文件的 config_version 大才可以生效
 config_version: 'LTS'
-
 
 # 方案列表
 schema_list:
@@ -13,10 +11,9 @@ schema_list:
 # 菜单
 menu:
   page_size: 6  # 候选词个数
-  alternative_select_labels: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]  # 修改候选项标签，Windows用这行会自动加点
+  alternative_select_labels: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # 修改候选项标签，Windows用这行会自动加点
   #alternative_select_labels: [ ⒈, ⒉, ⒊, ⒋, ⒌, ⒍, ⒎, ⒏, ⒐, ⒑ ]  # 修改候选项标签，Linux用这行用了加点字符
   #alternative_select_keys: ASDFGHJKL  # 这里战略性占用选字按键，如编码字符占用数字键，则需另设选字键
-
 
 # 方案选单相关
 switcher:
@@ -32,16 +29,14 @@ switcher:
     - emoji
     - full_shape
     - prediction
-    - super_tips
     - charset_filter
     - chaifen_switch
     - fuzhu_hint
     - tone_hint
     - search_single_char
-  fold_options: true            # 呼出时是否折叠，多方案时建议折叠 true ，一个方案建议展开 false
-  abbreviate_options: true      # 折叠时是否缩写选项
+  fold_options: true  # 呼出时是否折叠，多方案时建议折叠 true ，一个方案建议展开 false
+  abbreviate_options: true  # 折叠时是否缩写选项
   option_list_separator: ' / '  # 折叠时的选项分隔符
-
 
 # 中西文切换
 #
@@ -60,12 +55,11 @@ switcher:
 ascii_composer:
   good_old_caps_lock: true  # true | false
   switch_key:
-    Caps_Lock: clear      # commit_code | commit_text | clear
+    Caps_Lock: clear  # commit_code | commit_text | clear
     Shift_L: commit_code  # commit_code | commit_text | inline_ascii | clear | noop
-    Shift_R: commit_code         # commit_code | commit_text | inline_ascii | clear | noop
-    Control_L: noop       # commit_code | commit_text | inline_ascii | clear | noop
-    Control_R: noop       # commit_code | commit_text | inline_ascii | clear | noop
-
+    Shift_R: commit_code  # commit_code | commit_text | inline_ascii | clear | noop
+    Control_L: noop  # commit_code | commit_text | inline_ascii | clear | noop
+    Control_R: noop  # commit_code | commit_text | inline_ascii | clear | noop
 
 # 处理符合特定规则的输入码，如网址、反查
 # 此处配置较为通用的选项，各方案中另增加了和方案功能绑定的 patterns。
@@ -81,7 +75,7 @@ key_binder:
     # Tab / Shift+Tab 翻页
     # - { when: has_menu, accept: Shift+Tab, send: Page_Up }
     # - { when: has_menu, accept: Tab, send: Page_Down }
-    
+
     # numbered_mode_switch:
     # - { when: always, select: .next, accept: Control+Shift+1 }                  # 在最近的两个方案之间切换
     # - { when: always, select: .next, accept: Control+Shift+exclam }             # 在最近的两个方案之间切换
@@ -98,7 +92,7 @@ key_binder:
     # - { when: composing, accept: Control+a, send: Home }
     # - { when: composing, accept: Control+e, send: End }
     # - { when: composing, accept: Control+d, send: Delete }
-    - { when: composing, accept: Control+k, toggle: xxxxx } #释放Ctrl+k=ctrl+del 万象用来调序，且删除属于低频场景，建议双手操作
+    - {when: composing, accept: Control+k, toggle: xxxxx}  #释放Ctrl+k=ctrl+del 万象用来调序，且删除属于低频场景，建议双手操作
     # - { when: composing, accept: Control+h, send: BackSpace }
     # - { when: composing, accept: Control+g, send: Escape }
     # - { when: composing, accept: Control+bracketleft, send: Escape }
@@ -124,12 +118,12 @@ key_binder:
     - {accept: KP_7, send: 7, when: composing}
     - {accept: KP_8, send: 8, when: composing}
     - {accept: KP_9, send: 9, when: composing}
-    - {accept: KP_Decimal,  send: period  , when: composing}
+    - {accept: KP_Decimal, send: period, when: composing}
     - {accept: KP_Multiply, send: asterisk, when: composing}
-    - {accept: KP_Add,      send: plus,     when: composing}
-    - {accept: KP_Subtract, send: minus,    when: composing}
-    - {accept: KP_Divide,   send: slash,    when: composing}
-    - {accept: KP_Enter, send: Return, when: composing}
+    - {accept: KP_Add, send: plus, when: composing}
+    - {accept: KP_Subtract, send: minus, when: composing}
+    - {accept: KP_Divide, send: slash, when: composing}
+    - {accept: KP_Enter, send: Return, when: composing,}
 
 # 按键速查
 # https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md
