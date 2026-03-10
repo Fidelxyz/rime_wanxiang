@@ -320,9 +320,8 @@ function SV.update_preedit(env, preedit)
         env._sv_last_pre         = preedit
     end
 end
--- 对 cand.preedit 应用 tone_preedit/0..9 的映射（数字 -> 上标等）
--- 对 cand.preedit 应用转换：数字转上标，且隐藏双大写辅助码
-local function apply_tone_preedit(env, cand)
+-- 对 cand.preedit 应用转换：隐藏双大写辅助码
+local function apply_aux_preedit(env, cand)
     if not cand or not cand.preedit or cand.preedit == "" then
         return
     end
@@ -345,7 +344,7 @@ local function apply_tone_preedit(env, cand)
     
     -- 如果没配置 symbol，直接跳过大写转换逻辑
     if not aux_symbol or aux_symbol == "" then
-        goto tone_only
+        return
     end
 
     do
@@ -369,27 +368,6 @@ local function apply_tone_preedit(env, cand)
 
         cand.preedit = converted
     end
-    ::tone_only::
-    -- 4. 数字映射逻辑 (上标转换)
-    if not env.tone_map then
-        env.tone_map = {}
-        if cfg then
-            for d = 0, 9 do
-                local k = tostring(d)
-                local v = cfg:get_string("tone_preedit/" .. k)
-                env.tone_map[k] = (v and v ~= "") and v or k
-            end
-        end
-    end
-
-    local final_pre = cand.preedit:gsub("([^%d%s]+)(%d+)", function(body, digits)
-        local mapped = digits:gsub("%d", function(d)
-            return env.tone_map[d] or d
-        end)
-        return body .. mapped
-    end)
-    
-    cand.preedit = final_pre
 end
 
 -- ----------------------
@@ -438,21 +416,11 @@ function ZH.func(input, env)
     local context = env.engine.context
     local input_str = context.input
     local is_radical_mode = wanxiang.is_in_radical_mode(env)
-    local schema_id = env.engine.schema.schema_id or ""
-    local is_wanxiang_pro = (schema_id == "wanxiang_pro")
     local should_skip_candidate_comment = wanxiang.is_function_mode_active(context) or input_str == ""
     local is_tone_comment = env.engine.context:get_option("tone_hint")
     local is_toneless_comment = env.engine.context:get_option("toneless_hint")
     local is_comment_hint = env.engine.context:get_option("fuzhu_hint")
     local is_chaifen_enabled = env.engine.context:get_option("chaifen_switch")
-    --preedit相关声明
-    local delimiter = env.settings.delimiter
-    local auto_delimiter = env.settings.auto_delimiter
-    local manual_delimiter = env.settings.manual_delimiter
-    local visual_delim = config:get_string("speller/visual_delimiter") or " "
-    local tone_isolate = config:get_bool("speller/tone_isolate")
-    local is_tone_display = context:get_option("tone_display")
-    local is_full_pinyin = context:get_option("full_pinyin")
     local index = 0
     -- auto_phrase 相关声明
     local enable_auto_phrase = config:get_bool("add_user_dict/enable_auto_phrase") or false
@@ -471,93 +439,13 @@ function ZH.func(input, env)
         if is_radical_mode then
             goto after_preedit
         end
-        if not is_tone_display and not is_full_pinyin then
-            goto after_preedit
-        end
-        if (not initial_comment or initial_comment == "") then
-            goto after_preedit
-        end
-        do
-            -- 拆分 preedit
-            local input_parts = {}
-            local current_segment = ""
-            for i = 1, #preedit do
-                local char = preedit:sub(i, i)
-                if char == auto_delimiter or char == manual_delimiter then
-                    if #current_segment > 0 then
-                        table.insert(input_parts, current_segment)
-                        current_segment = ""
-                    end
-                    table.insert(input_parts, char)
-                else
-                    current_segment = current_segment .. char
-                end
-            end
-            if #current_segment > 0 then
-                table.insert(input_parts, current_segment)
-            end
 
-            -- 拆分拼音段（comment）
-            local pinyin_segments = {}
-            for segment in string.gmatch(initial_comment, "[^" .. auto_delimiter .. manual_delimiter .. "]+") do
-                local pinyin = segment:match("^[^;]+")
-                if pinyin then
-                    pinyin = pinyin:gsub("[%[%]]", "")  --去掉英文词库编码中的[]
-                    table.insert(pinyin_segments, pinyin)
-                end
-            end
-
-            -- 替换逻辑
-            local pinyin_index = 1
-            for i, part in ipairs(input_parts) do
-                if part == auto_delimiter or part == manual_delimiter then
-                    input_parts[i] = visual_delim
-                else
-                    local body, tone = part:match("([%a]+)([^%a]+)") --后面加号很必要
-                    local py = pinyin_segments[pinyin_index]
-
-                    if py then
-                        if is_wanxiang_pro then
-                            input_parts[i] = py
-                            pinyin_index = pinyin_index + 1
-                        elseif i == #input_parts and #part == 1 then
-                            local prefix = py:sub(1, 2)
-                            local first_char = part:sub(1,1):lower()
-                            if first_char == "s" or first_char == "c" or first_char == "z" then
-                                input_parts[i] = part
-                            else
-                                if prefix == "zh" or prefix == "ch" or prefix == "sh" then
-                                    input_parts[i] = prefix
-                                else
-                                    input_parts[i] = part
-                                end
-                            end
-                        else
-                            if tone_isolate then
-                                input_parts[i] = py .. (tone or "")
-                            else
-                                input_parts[i] = py
-                            end
-                            pinyin_index = pinyin_index + 1
-                        end
-                    end
-                end
-            end
-
-            if is_full_pinyin then
-                for idx, part in ipairs(input_parts) do
-                    input_parts[idx] = remove_pinyin_tone(part)
-                end
-            end
-
-            genuine_cand.preedit = table.concat(input_parts)
-        end
         ::after_preedit::
         if should_skip_candidate_comment then
             yield(genuine_cand)
             goto continue
         end
-        apply_tone_preedit(env, genuine_cand)
+        apply_aux_preedit(env, genuine_cand)
         -- 进入注释处理阶段
         -- ① 辅助码注释或者声调注释
         if is_comment_hint then

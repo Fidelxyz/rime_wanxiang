@@ -10,7 +10,7 @@ patch:
   #custom_phrase/user_dict: custom_phrasexx    # 这里改成什么就需要手动创建同名的 custom_phrasexx.txt 文件在用户目录，这个文件主要用于置顶，编码为自定义编码的词汇
   #translator/packs/+:
     #- userxx                                  #导入根目录下名称为userxx.dict.yaml的自定义固定词典，编码要与固定词库一致，编码权重都不要少，形如姓名、专有名词公司名称等等
-    #下面是候选数量，未来7890分别代表1234声，请候选长度不要大于6避免冲突
+    #下面是候选数量
   menu/page_size: 6
 
   super_comment:                  # 超级注释模块，子项配置 true 开启，false 关闭
@@ -132,12 +132,8 @@ patch:
   #成语简码前置位置，只能设置在第一页，大于当前页数量则默认在最后一个，0代表关闭前置
   idiom_preposition: 0
 
-  #常规状态下数字转换成相应的字符，由超级preedit接管
-  tone_preedit:
-    "7": "¹"
-    "8": "²"
-    "9": "³"
-    "0": "⁴"
+
+
 
   # a/、单字母组合，触发预设编码自动上屏快符，支持将值设为"repeat" 以支持对应按键重复上屏功能，custom>schema>lua最终合并键值
   # 现在就支持26字母快符，结合成对符号输入，这边的压力小一些

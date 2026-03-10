@@ -8,13 +8,13 @@
 
 ### 全能拼音标注（带声调词库）
 
-所有词语自带音调，支持多种带调方案、声调注释显示，以及整句拼音串上屏。
+所有词语自带音调，支持多种带调方案、声调注释显示。
 
 | 实现位置 | 说明 |
 |----------|------|
 | `dicts/*.dict.yaml` | 带声调拼音标注的词库数据 |
-| `wanxiang_algebra.yaml` | 声调拼音到输入编码的转写规则（3101 行，12+ 拼音方案） |
-| `lua/wanxiang/super_comment_preedit.lua` | 声调注释显示、输入码音调显示（Ctrl+s 整句拼音串上屏） |
+| `wanxiang_algebra.yaml` | 声调拼音到输入编码的转写规则（~2428 行，12+ 拼音方案） |
+| `lua/wanxiang/super_comment_preedit.lua` | 声调注释显示 |
 
 ### 极致权重与分词
 
@@ -32,7 +32,7 @@
 
 | 实现位置 | 说明 |
 |----------|------|
-| `lua/wanxiang/super_lookup.lua` | 输入后反查（候选筛选）、声调反查、辅助码反查 |
+| `lua/wanxiang/super_lookup.lua` | 输入后反查（候选筛选）、辅助码反查 |
 | `wanxiang_reverse.schema.yaml` | 输入前反查（拆字/笔画反查方案定义） |
 | `wanxiang_reverse.dict.yaml` | 反查字典数据 |
 | `wanxiang.schema.yaml` (`wanxiang_lookup` 段) | 反查系统配置（引导符、数据源优先级） |
@@ -82,19 +82,9 @@
 | `custom/wanxiang_pro.schema.yaml` | 间接辅助码 speller 配置 |
 | `wanxiang_algebra.yaml` | 间接辅助码转写规则 |
 
-#### 声调辅助筛选
-
-7890 数字键代表一二三四声，支持与辅助码混合使用、顺序自由。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `wanxiang_algebra.yaml` (`base:/全拼` 段) | 声调数字(7890)到拼音声调的转写规则 |
-| `lua/wanxiang/super_processor.lua` | 声调回退逻辑（在 7890 之间轮巡切换） |
-| `lua/wanxiang/super_lookup.lua` | 反查中声调筛选支持 |
-
 #### 大写辅助筛选
 
-输入辅助码时可穿插小写、大写、声调定位。
+输入辅助码时可穿插小写、大写定位。
 
 | 实现位置 | 说明 |
 |----------|------|
@@ -109,16 +99,8 @@
 
 | 实现位置 | 说明 |
 |----------|------|
-| `lua/wanxiang/super_lookup.lua` | 候选筛选核心逻辑（614 行），支持 aux/db 双数据源 |
+| `lua/wanxiang/super_lookup.lua` | 候选筛选核心逻辑（~525 行），支持 aux/db 双数据源 |
 | `wanxiang.schema.yaml` (`wanxiang_lookup` 段) | 反查配置（引导符、tags、数据源优先级） |
-
-#### 声调反查支持
-
-反查符号后任意位置输入数字声调。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_lookup.lua` | 反查中声调映射逻辑（`tone_map` 表） |
 
 #### 输入前反查
 
@@ -255,21 +237,13 @@ Shift+Space 在中文/英文/混合候选词之间切换。
 
 ### 辅助码提示 Lua（仅 PRO）
 
-任意长度候选词的辅助码提示，Ctrl+a 循环切换（辅助码/声调全拼/关闭），Ctrl+c 拆分提示。
+任意长度候选词的辅助码提示，Ctrl+a 循环切换（辅助码/关闭），Ctrl+c 拆分提示。
 
 | 实现位置 | 说明 |
 |----------|------|
-| `lua/wanxiang/super_comment_preedit.lua` | 注释显示模块（625 行）：辅助码提示、声调提示、拆分提示 |
+| `lua/wanxiang/super_comment_preedit.lua` | 注释显示模块（~513 行）：辅助码提示、拆分提示 |
 | `custom/wanxiang_chaifen.schema.yaml` | 拆分反查方案 |
 | `custom/wanxiang_chaifen_*.dict.yaml` | 7 种辅码拆分字典 |
-
-### 输入码音调显示 Lua
-
-Ctrl+s 使输入码实时显示全拼并加音调，Shift+Enter 上屏编码字符串。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_comment_preedit.lua` | preedit 音调显示逻辑 |
 
 ### 用户按需造词（仅 PRO）
 
@@ -339,14 +313,6 @@ Ctrl+J/K/L/P 手动调整候选排序，支持多设备同步。
 |----------|------|
 | `lua/wanxiang/super_sequence.lua` | 手动排序模块（726 行），LevelDB 数据库 `lua/sequence.userdb` |
 | `wanxiang.schema.yaml` | 排序快捷键配置 |
-
-### 声调辅助回退 Lua
-
-输入 `ni9` 后可直接输入 `0` 替换声调（在 7890 间轮巡，无需删除）。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_processor.lua` | 声调回退处理逻辑 |
 
 ### 小键盘有妙用 Lua
 
@@ -564,3 +530,23 @@ Ctrl+E 进入翻译模式（OpenCC 查表中英互译）。
 | 已删除配置 | 说明 |
 |------------|------|
 | `custom/wanxiang.custom.yaml` | `18jian` / `14jian` xlit 转写段落 |
+
+### 声调辅助筛选
+
+7890 数字键代表一二三四声，支持与辅助码混合使用。
+
+| 已删除配置 | 说明 |
+|------------|------|
+| `wanxiang_algebra.yaml` | 声调数字(7890)到拼音声调的转写规则（~673 行） |
+| `wanxiang.schema.yaml` 等 | `alphabet` 中 7890、`tone_display`/`full_pinyin` 开关 |
+| `lua/wanxiang/super_processor.lua` | 声调回退逻辑（在 7890 之间轮巡切换） |
+| `lua/wanxiang/super_lookup.lua` | 反查中声调筛选与 `tone_map` 表 |
+
+### 输入码音调显示 Lua
+
+Ctrl+s 使输入码实时显示全拼并加音调，Shift+Enter 上屏编码字符串。
+
+| 已删除配置 | 说明 |
+|------------|------|
+| `lua/wanxiang/super_comment_preedit.lua` | preedit 音调显示逻辑、`full_pinyin` 上屏功能 |
+| `custom/wanxiang.custom.yaml` 等 | `tone_preedit` 配置段落 |
