@@ -44,11 +44,17 @@ function this.init(env)
     end
     for i = 1, bindings.size do
         local item = bindings:get_at(i - 1)
-        if not item then goto continue end
+        if not item then
+            goto continue
+        end
         local value = item:get_map()
-        if not value then goto continue end
+        if not value then
+            goto continue
+        end
         local binding = parse(value)
-        if not binding then goto continue end
+        if not binding then
+            goto continue
+        end
         table.insert(env.bindings, binding)
         ::continue::
     end
@@ -65,11 +71,14 @@ function this.func(key_event, env)
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
 
-
     if not input then
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
-    if env.engine.context == nil or env.engine.context.composition == nil or env.engine.context.composition:back() == nil then
+    if
+        env.engine.context == nil
+        or env.engine.context.composition == nil
+        or env.engine.context.composition:back() == nil
+    then
         return wanxiang.RIME_PROCESS_RESULTS.kNoop
     end
     if not env.engine.context.composition:back():has_tag("abc") then

@@ -1,31 +1,41 @@
 --@amzxyz https://github.com/amzxyz/rime_wanxiang
 --wanxiang_lookup: #设置归属于super_lookup.lua
-  --tags: [ abc ]  # 检索当前tag的候选
-  --key: "`"       # 输入中反查引导符
-  --lookup: [ wanxiang_reverse ] #反查滤镜数据库
-  --data_source: [ aux, db ] # 优先级：写在前面优先。
+--tags: [ abc ]  # 检索当前tag的候选
+--key: "`"       # 输入中反查引导符
+--lookup: [ wanxiang_reverse ] #反查滤镜数据库
+--data_source: [ aux, db ] # 优先级：写在前面优先。
 
 -- 工具函数：转义正则特殊字符
 local function alt_lua_punc(s)
-    return s and s:gsub('([%.%+%-%*%?%[%]%^%$%(%)%%])', '%%%1') or ''
+    return s and s:gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1") or ""
 end
 -- 高性能 UTF8 长度获取
 local function get_utf8_len(s)
-    if utf8 and utf8.len then return utf8.len(s) end
+    if utf8 and utf8.len then
+        return utf8.len(s)
+    end
     local _, count = string.gsub(s, "[^\128-\193]", "")
     return count
 end
 
 -- 规则加载
 local function parse_and_separate_rules(schema_id)
-    if not schema_id or #schema_id == 0 then return nil, nil end
+    if not schema_id or #schema_id == 0 then
+        return nil, nil
+    end
     local schema = Schema(schema_id)
-    if not schema then return nil, nil end
+    if not schema then
+        return nil, nil
+    end
     local config = schema.config
-    if not config then return nil, nil end
-    local algebra_list = config:get_list('speller/algebra')
-    if not algebra_list or algebra_list.size == 0 then return nil, nil end
-    
+    if not config then
+        return nil, nil
+    end
+    local algebra_list = config:get_list("speller/algebra")
+    if not algebra_list or algebra_list.size == 0 then
+        return nil, nil
+    end
+
     local main_rules, xlit_rules = {}, {}
     for i = 0, algebra_list.size - 1 do
         local rule = algebra_list:get_value_at(i).value
@@ -37,51 +47,65 @@ local function parse_and_separate_rules(schema_id)
             end
         end
     end
-    if #main_rules == 0 and #xlit_rules == 0 then return nil, nil end
+    if #main_rules == 0 and #xlit_rules == 0 then
+        return nil, nil
+    end
     return main_rules, xlit_rules
 end
 
 local function get_schema_rules(env)
     local config = env.engine.schema.config
     local db_list = config:get_list("wanxiang_lookup/lookup")
-    if not db_list or db_list.size == 0 then return {}, {} end
+    if not db_list or db_list.size == 0 then
+        return {}, {}
+    end
     local schema_id = db_list:get_value_at(0).value
-    if not schema_id or #schema_id == 0 then return {}, {} end
+    if not schema_id or #schema_id == 0 then
+        return {}, {}
+    end
     local main_rules, xlit_rules = parse_and_separate_rules(schema_id)
-    if not main_rules and not xlit_rules then return {}, {} end
+    if not main_rules and not xlit_rules then
+        return {}, {}
+    end
     return main_rules or {}, xlit_rules or {}
 end
 
 local function expand_code_variant(main_projection, xlit_projection, part)
     local out, seen = {}, {}
     local out_xlit, seen_xlit = {}, {}
-    local function add(s) 
-        if s and #s > 0 and not seen[s] then 
-            seen[s] = true 
-            table.insert(out, s) 
-        end 
+    local function add(s)
+        if s and #s > 0 and not seen[s] then
+            seen[s] = true
+            table.insert(out, s)
+        end
     end
-    local function add_xlit(s) 
-        if s and #s > 0 and not seen_xlit[s] then 
-            seen_xlit[s] = true 
-            table.insert(out_xlit, s) 
-        end 
+    local function add_xlit(s)
+        if s and #s > 0 and not seen_xlit[s] then
+            seen_xlit[s] = true
+            table.insert(out_xlit, s)
+        end
     end
     local function extract_odd_positions(s)
-        if not s or not s:match("^%l+$") or #s % 2 ~= 0 then return nil end
+        if not s or not s:match("^%l+$") or #s % 2 ~= 0 then
+            return nil
+        end
         local res = ""
-        for i = 1, #s, 2 do res = res .. s:sub(i, i) end
+        for i = 1, #s, 2 do
+            res = res .. s:sub(i, i)
+        end
         return res
     end
     local function get_v_variant(s)
-        if not s or not s:match("^%l+$") or #s % 2 ~= 0 then return nil end
+        if not s or not s:match("^%l+$") or #s % 2 ~= 0 then
+            return nil
+        end
         local res = ""
         local has_change = false
         for i = 1, #s, 2 do
             local char_odd = s:sub(i, i)
-            local char_even = s:sub(i+1, i+1)
-            if (char_odd == 'j' or char_odd == 'q' or char_odd == 'x' or char_odd == 'y') and char_even == 'v' then
-                res = res .. char_odd .. 'u'
+            local char_even = s:sub(i + 1, i + 1)
+            if (char_odd == "j" or char_odd == "q" or char_odd == "x" or char_odd == "y") and char_even == "v" then
+                res = res .. char_odd .. "u"
                 has_change = true
             else
                 res = res .. char_odd .. char_even
@@ -94,27 +118,35 @@ local function expand_code_variant(main_projection, xlit_projection, part)
     if quote_count == 1 then
         local s1, s2 = part:match("^([^']*)'([^']*)$")
         if s1 and s2 and #s1 > 0 and #s2 > 0 then
-            add(s1:sub(1,1) .. s2:sub(1,1))
+            add(s1:sub(1, 1) .. s2:sub(1, 1))
         end
     end
-    if part:match("^%l+$") then add(part) end
+    if part:match("^%l+$") then
+        add(part)
+    end
     local raw_extracted = extract_odd_positions(part)
-    if raw_extracted then add(raw_extracted) end
+    if raw_extracted then
+        add(raw_extracted)
+    end
 
-    if main_projection and not part:match('^%u+$') then
+    if main_projection and not part:match("^%u+$") then
         local p = main_projection:apply(part, true)
         if p and #p > 0 then
-            add(p) 
+            add(p)
             local v_variant = get_v_variant(p)
-            if v_variant then add(v_variant) end
+            if v_variant then
+                add(v_variant)
+            end
             local proj_extracted = extract_odd_positions(p)
-            if proj_extracted then add(proj_extracted) end
+            if proj_extracted then
+                add(proj_extracted)
+            end
         end
     end
-    if part:match('^%u+$') and xlit_projection then
+    if part:match("^%u+$") and xlit_projection then
         local xlit_result = xlit_projection:apply(part, true)
-        if xlit_result and #xlit_result > 0 then 
-            add_xlit(xlit_result) 
+        if xlit_result and #xlit_result > 0 then
+            add_xlit(xlit_result)
         end
     end
     return out, out_xlit
@@ -123,27 +155,27 @@ end
 local function build_reverse_group(main_projection, xlit_projection, db_table, text)
     local group_main, seen_main = {}, {}
     local group_xlit, seen_xlit = {}, {}
-    
+
     for _, db in ipairs(db_table) do
         local code = db:lookup(text)
         if code and #code > 0 then
-            for part in code:gmatch('%S+') do
+            for part in code:gmatch("%S+") do
                 -- 接收分离的两种数据
                 local main_variants, xlit_variants = expand_code_variant(main_projection, xlit_projection, part)
-                
+
                 -- 装填主数据
-                for _, v in ipairs(main_variants) do 
-                    if not seen_main[v] then 
-                        seen_main[v] = true 
-                        group_main[#group_main + 1] = v 
-                    end 
+                for _, v in ipairs(main_variants) do
+                    if not seen_main[v] then
+                        seen_main[v] = true
+                        group_main[#group_main + 1] = v
+                    end
                 end
                 -- 装填 xlit 数据
-                for _, v in ipairs(xlit_variants) do 
-                    if not seen_xlit[v] then 
-                        seen_xlit[v] = true 
-                        group_xlit[#group_xlit + 1] = v 
-                    end 
+                for _, v in ipairs(xlit_variants) do
+                    if not seen_xlit[v] then
+                        seen_xlit[v] = true
+                        group_xlit[#group_xlit + 1] = v
+                    end
                 end
             end
         end
@@ -152,36 +184,52 @@ local function build_reverse_group(main_projection, xlit_projection, db_table, t
 end
 
 local function group_match(group, fuma)
-    if not group then return false end
-    for i = 1, #group do 
-        if string.sub(group[i], 1, #fuma) == fuma then return true end 
+    if not group then
+        return false
+    end
+    for i = 1, #group do
+        if string.sub(group[i], 1, #fuma) == fuma then
+            return true
+        end
     end
     return false
 end
 
 local function match_fuzzy_recursive(codes_sequence, idx, input_str, input_idx, memo, is_phrase_mode)
-    if input_idx > #input_str then return true end
-    if idx > #codes_sequence then return false end
-    
+    if input_idx > #input_str then
+        return true
+    end
+    if idx > #codes_sequence then
+        return false
+    end
+
     local state_key = idx * 1000 + input_idx
-    if memo[state_key] ~= nil then return memo[state_key] end
+    if memo[state_key] ~= nil then
+        return memo[state_key]
+    end
 
     local codes = codes_sequence[idx]
     local result = false
-    
+
     if codes then
         for _, code in ipairs(codes) do
             local skip = false
-            if is_phrase_mode and #code > 3 then skip = true end
+            if is_phrase_mode and #code > 3 then
+                skip = true
+            end
 
-            if code:match("^%d+$") then skip = true end
+            if code:match("^%d+$") then
+                skip = true
+            end
             if not skip then
                 local i_curr = input_idx
                 local c_curr = 1
                 local i_limit = #input_str
                 local c_limit = #code
                 while i_curr <= i_limit and c_curr <= c_limit do
-                    if input_str:byte(i_curr) == code:byte(c_curr) then i_curr = i_curr + 1 end
+                    if input_str:byte(i_curr) == code:byte(c_curr) then
+                        i_curr = i_curr + 1
+                    end
                     c_curr = c_curr + 1
                 end
                 if match_fuzzy_recursive(codes_sequence, idx + 1, input_str, i_curr, memo, is_phrase_mode) then
@@ -191,16 +239,22 @@ local function match_fuzzy_recursive(codes_sequence, idx, input_str, input_idx, 
             end
         end
     else
-        if match_fuzzy_recursive(codes_sequence, idx + 1, input_str, input_idx, memo, is_phrase_mode) then result = true end
+        if match_fuzzy_recursive(codes_sequence, idx + 1, input_str, input_idx, memo, is_phrase_mode) then
+            result = true
+        end
     end
     memo[state_key] = result
     return result
 end
 
 local function list_contains(list, target)
-    if not list then return false end
+    if not list then
+        return false
+    end
     for _, v in ipairs(list) do
-        if v == target then return true end
+        if v == target then
+            return true
+        end
     end
     return false
 end
@@ -208,7 +262,9 @@ end
 -- 解析输入中的反查分隔点。
 -- 兼容动态获取的造词前缀：如果输入以 bypass_prefix 开头，则跳过它，只把后续反查引导符当作筛选分隔点。
 local function split_lookup_input(input, key, bypass_prefix)
-    if not input or input == "" or not key or key == "" then return nil end
+    if not input or input == "" or not key or key == "" then
+        return nil
+    end
 
     local scan_from = 1
     -- 如果有配置造词前缀，且当前输入是以它开头，就把扫描起点后移
@@ -220,12 +276,16 @@ local function split_lookup_input(input, key, bypass_prefix)
     local from = scan_from
     while true do
         local s, e = input:find(key, from, true)
-        if not s then break end
+        if not s then
+            break
+        end
         s_start, s_end = s, e
         from = s + 1
     end
 
-    if not s_start then return nil end
+    if not s_start then
+        return nil
+    end
 
     local code = input:sub(1, s_start - 1)
     local fuma = input:sub(s_end + 1)
@@ -233,33 +293,41 @@ local function split_lookup_input(input, key, bypass_prefix)
 end
 
 local function parse_comment_codes(comment, pattern, target_len)
-    if not comment or comment == "" then return nil end
+    if not comment or comment == "" then
+        return nil
+    end
     local parts = {}
-    
+
     if target_len == 1 then
         parts = { comment }
     else
-        for seg in comment:gmatch(pattern) do table.insert(parts, seg) end
-        if #parts ~= target_len then return nil end
+        for seg in comment:gmatch(pattern) do
+            table.insert(parts, seg)
+        end
+        if #parts ~= target_len then
+            return nil
+        end
     end
-    
+
     local result = {}
     for i, part in ipairs(parts) do
         local p1, p2 = part:find(";")
         local codes_part
-        
+
         if p1 then
             codes_part = part:sub(p2 + 1)
         else
             codes_part = ""
         end
-        
+
         local codes_list = {}
         -- 提取辅码
         if #codes_part > 0 then
-            for c in codes_part:gmatch("[^,]+") do 
+            for c in codes_part:gmatch("[^,]+") do
                 local trimmed = c:gsub("^%s+", ""):gsub("%s+$", "")
-                if #trimmed > 0 then table.insert(codes_list, trimmed) end
+                if #trimmed > 0 then
+                    table.insert(codes_list, trimmed)
+                end
             end
         end
         result[i] = codes_list
@@ -271,23 +339,27 @@ local f = {}
 
 function f.init(env)
     local config = env.engine.schema.config
-    
+
     -- 1. 读取数据源
-    local sources_list = config:get_list('wanxiang_lookup/data_source')
+    local sources_list = config:get_list("wanxiang_lookup/data_source")
     env.data_sources = {}
-    
+
     local config_has_aux_source = false
     env.has_db = false
-    
+
     if sources_list and sources_list.size > 0 then
         for i = 0, sources_list.size - 1 do
             local s = sources_list:get_value_at(i).value
             table.insert(env.data_sources, s)
-            if s == 'aux' then config_has_aux_source = true end
-            if s == 'db' then env.has_db = true end
+            if s == "aux" then
+                config_has_aux_source = true
+            end
+            if s == "db" then
+                env.has_db = true
+            end
         end
     else
-        env.data_sources = { 'aux', 'db' }
+        env.data_sources = { "aux", "db" }
         config_has_aux_source = true
         env.has_db = true
     end
@@ -304,45 +376,53 @@ function f.init(env)
                 table.insert(env.db_table, ReverseLookup(db_list:get_value_at(i).value))
             end
             local main_rules, xlit_rules = get_schema_rules(env)
-            env.main_projection = (type(main_rules) == 'table' and #main_rules > 0) and Projection() or nil
-            if env.main_projection then env.main_projection:load(main_rules) end
-            env.xlit_projection = (type(xlit_rules) == 'table' and #xlit_rules > 0) and Projection() or nil
-            if env.xlit_projection then env.xlit_projection:load(xlit_rules) end
+            env.main_projection = (type(main_rules) == "table" and #main_rules > 0) and Projection() or nil
+            if env.main_projection then
+                env.main_projection:load(main_rules)
+            end
+            env.xlit_projection = (type(xlit_rules) == "table" and #xlit_rules > 0) and Projection() or nil
+            if env.xlit_projection then
+                env.xlit_projection:load(xlit_rules)
+            end
         else
             env.has_db = false
         end
     end
 
     if env.has_comment then
-        local delimiter = config:get_string('speller/delimiter') or " '"
-        if delimiter == "" then delimiter = " " end
+        local delimiter = config:get_string("speller/delimiter") or " '"
+        if delimiter == "" then
+            delimiter = " "
+        end
         env.comment_split_ptrn = "[^" .. alt_lua_punc(delimiter) .. "]+"
     end
 
-    env.search_key_str = config:get_string('wanxiang_lookup/key') or '`'
+    env.search_key_str = config:get_string("wanxiang_lookup/key") or "`"
     env.search_key_alt = alt_lua_punc(env.search_key_str)
-    env.bypass_prefix = config:get_string('add_user_dict/prefix')
+    env.bypass_prefix = config:get_string("add_user_dict/prefix")
 
-    local tag = config:get_list('wanxiang_lookup/tags')
+    local tag = config:get_list("wanxiang_lookup/tags")
     if tag and tag.size > 0 then
         env.tag = {}
         for i = 0, tag.size - 1 do
             table.insert(env.tag, tag:get_value_at(i).value)
         end
     else
-        env.tag = { 'abc' }
+        env.tag = { "abc" }
     end
 
     env.notifier = env.engine.context.select_notifier:connect(function(ctx)
         local input = ctx.input
         local code, fuma = split_lookup_input(input, env.search_key_str, env.bypass_prefix)
-        if (not code or #code == 0) then return end
+        if not code or #code == 0 then
+            return
+        end
 
         local preedit = ctx:get_preedit()
         local no_search_string = code
         local preedit_text = (preedit and preedit.text) or ""
         local edit = select(1, split_lookup_input(preedit_text, env.search_key_str, env.bypass_prefix))
-        if edit and edit:match('[%w/]') then
+        if edit and edit:match("[%w/]") then
             ctx.input = no_search_string .. env.search_key_str
         else
             ctx.input = no_search_string
@@ -353,7 +433,7 @@ function f.init(env)
 
     env._global_db_cache = {}
     env._global_comment_cache = {}
-    env.cache_size = 0 
+    env.cache_size = 0
 end
 
 function f.func(input, env)
@@ -361,28 +441,44 @@ function f.func(input, env)
     local seg = context.composition:back()
 
     if not seg or not f.tags_match(seg, env) then
-        for cand in input:iter() do yield(cand) end
+        for cand in input:iter() do
+            yield(cand)
+        end
         return
     end
     if #env.data_sources == 0 then
-        for cand in input:iter() do yield(cand) end
+        for cand in input:iter() do
+            yield(cand)
+        end
         return
     end
 
     local ctx_input = env.engine.context.input
     -- 传入 env.bypass_prefix
     local _, fuma, s_start, s_end = split_lookup_input(ctx_input, env.search_key_str, env.bypass_prefix)
-    if not s_start then for cand in input:iter() do yield(cand) end return end
-    if #fuma == 0 then for cand in input:iter() do yield(cand) end return end
+    if not s_start then
+        for cand in input:iter() do
+            yield(cand)
+        end
+        return
+    end
+    if #fuma == 0 then
+        for cand in input:iter() do
+            yield(cand)
+        end
+        return
+    end
 
     local clean_fuma = fuma
 
-    local if_single_char_first = env.engine.context:get_option('char_priority')
+    local if_single_char_first = env.engine.context:get_option("char_priority")
     local buckets = {}
-    for i = 1, #env.data_sources do buckets[i] = {} end
+    for i = 1, #env.data_sources do
+        buckets[i] = {}
+    end
     local long_word_cands = {}
     local max_len = 0
-    local has_any_match = false 
+    local has_any_match = false
 
     if env.cache_size > 2000 then
         env._global_db_cache = {}
@@ -393,15 +489,21 @@ function f.func(input, env)
     local comment_cache = env._global_comment_cache
 
     for cand in input:iter() do
-        if cand.type == 'sentence' then goto skip end
+        if cand.type == "sentence" then
+            goto skip
+        end
         local cand_text = cand.text
         local cand_len = get_utf8_len(cand_text)
-        if not cand_len or cand_len == 0 then goto skip end
+        if not cand_len or cand_len == 0 then
+            goto skip
+        end
         local b = string.byte(cand_text, 1)
-        if b and b < 128 then goto skip end
+        if b and b < 128 then
+            goto skip
+        end
 
         local raw_data = {}
-        
+
         -- 数据加载 A: Aux Data (From Comment)
         if env.has_comment then
             local genuine = cand:get_genuine()
@@ -409,7 +511,8 @@ function f.func(input, env)
             if comment_text ~= "" then
                 local cache_key = cand_text .. "_" .. comment_text
                 if not comment_cache[cache_key] then
-                    comment_cache[cache_key] = parse_comment_codes(comment_text, env.comment_split_ptrn, cand_len) or false
+                    comment_cache[cache_key] = parse_comment_codes(comment_text, env.comment_split_ptrn, cand_len)
+                        or false
                     env.cache_size = env.cache_size + 1
                 end
                 if comment_cache[cache_key] then
@@ -425,22 +528,27 @@ function f.func(input, env)
             for _, code_point in utf8.codes(cand_text) do
                 i = i + 1
                 local char_str = utf8.char(code_point)
-                
+
                 -- 1. 查缓存，如果没有就调用底层函数，拿到分离后的两种数据
                 if not db_cache[char_str] then
-                    local main_codes, xlit_codes = build_reverse_group(env.main_projection, env.xlit_projection, env.db_table, char_str)
+                    local main_codes, xlit_codes =
+                        build_reverse_group(env.main_projection, env.xlit_projection, env.db_table, char_str)
                     db_cache[char_str] = {
                         main = main_codes or {},
-                        xlit = xlit_codes or {}
+                        xlit = xlit_codes or {},
                     }
-                    env.cache_size = env.cache_size + 1 
+                    env.cache_size = env.cache_size + 1
                 end
-                
+
                 -- 2. 核心分配逻辑：控制词组取什么数据
                 if cand_len == 1 then
                     local combined = {}
-                    for _, v in ipairs(db_cache[char_str].main) do table.insert(combined, v) end
-                    for _, v in ipairs(db_cache[char_str].xlit) do table.insert(combined, v) end
+                    for _, v in ipairs(db_cache[char_str].main) do
+                        table.insert(combined, v)
+                    end
+                    for _, v in ipairs(db_cache[char_str].xlit) do
+                        table.insert(combined, v)
+                    end
                     raw_data.db[i] = (#combined > 0) and combined or nil
                 else
                     local main_data = db_cache[char_str].main
@@ -455,25 +563,33 @@ function f.func(input, env)
             local codes_seq = raw_data[source_type]
             if codes_seq then
                 local is_match = false
-                if source_type == 'aux' then
+                if source_type == "aux" then
                     if cand_len == 1 then
-                        if group_match(codes_seq[1], clean_fuma) then is_match = true end
+                        if group_match(codes_seq[1], clean_fuma) then
+                            is_match = true
+                        end
                     else
                         local memo = {}
-                        if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, false) then is_match = true end
+                        if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, false) then
+                            is_match = true
+                        end
                     end
-                elseif source_type == 'db' then
+                elseif source_type == "db" then
                     if cand_len == 1 then
-                         if group_match(codes_seq[1], clean_fuma) then is_match = true end
+                        if group_match(codes_seq[1], clean_fuma) then
+                            is_match = true
+                        end
                     else
-                         local memo = {}
-                         if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, true) then is_match = true end
+                        local memo = {}
+                        if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, true) then
+                            is_match = true
+                        end
                     end
                 end
-                
+
                 if is_match then
                     matched_idx = i
-                    break 
+                    break
                 end
             end
         end
@@ -483,9 +599,13 @@ function f.func(input, env)
             if if_single_char_first and cand_len > 1 then
                 table.insert(long_word_cands, cand)
             else
-                if not buckets[matched_idx][cand_len] then buckets[matched_idx][cand_len] = {} end
+                if not buckets[matched_idx][cand_len] then
+                    buckets[matched_idx][cand_len] = {}
+                end
                 table.insert(buckets[matched_idx][cand_len], cand)
-                if cand_len > max_len then max_len = cand_len end
+                if cand_len > max_len then
+                    max_len = cand_len
+                end
             end
         end
         ::skip::
@@ -493,35 +613,55 @@ function f.func(input, env)
 
     if if_single_char_first then
         for i = 1, #env.data_sources do
-            if buckets[i][1] then for _, c in ipairs(buckets[i][1]) do yield(c) end end
+            if buckets[i][1] then
+                for _, c in ipairs(buckets[i][1]) do
+                    yield(c)
+                end
+            end
         end
         for l = max_len, 2, -1 do
             for i = 1, #env.data_sources do
-                if buckets[i][l] then for _, c in ipairs(buckets[i][l]) do yield(c) end end
+                if buckets[i][l] then
+                    for _, c in ipairs(buckets[i][l]) do
+                        yield(c)
+                    end
+                end
             end
         end
     else
         for l = max_len, 1, -1 do
             for i = 1, #env.data_sources do
-                if buckets[i][l] then for _, c in ipairs(buckets[i][l]) do yield(c) end end
+                if buckets[i][l] then
+                    for _, c in ipairs(buckets[i][l]) do
+                        yield(c)
+                    end
+                end
             end
         end
     end
-    
-    for _, c in ipairs(long_word_cands) do yield(c) end
+
+    for _, c in ipairs(long_word_cands) do
+        yield(c)
+    end
 end
 
 function f.tags_match(seg, env)
-    for _, v in ipairs(env.tag) do if seg.tags[v] then return true end end
+    for _, v in ipairs(env.tag) do
+        if seg.tags[v] then
+            return true
+        end
+    end
     return false
 end
 
 function f.fini(env)
-    if env.notifier then env.notifier:disconnect() end
+    if env.notifier then
+        env.notifier:disconnect()
+    end
     env.db_table = nil
     env._global_db_cache = nil
     env._global_comment_cache = nil
-    collectgarbage('collect')
+    collectgarbage("collect")
 end
 
 return f

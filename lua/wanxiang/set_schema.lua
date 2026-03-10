@@ -3,15 +3,15 @@ local wanxiang = require("wanxiang/wanxiang")
 -- 文件复制函数
 local function copy_file(src, dest)
     local fi = io.open(src, "r")
-    if not fi then 
-        return false 
+    if not fi then
+        return false
     end
     local content = fi:read("*a")
     fi:close()
 
     local fo = io.open(dest, "w")
-    if not fo then 
-        return false 
+    if not fo then
+        return false
     end
     fo:write(content)
     fo:close()
@@ -31,8 +31,8 @@ end
 -- 替换方案函数
 local function replace_schema(file_path, target_schema)
     local f = io.open(file_path, "r")
-    if not f then 
-        return false 
+    if not f then
+        return false
     end
     local content = f:read("*a")
     f:close()
@@ -45,13 +45,13 @@ local function replace_schema(file_path, target_schema)
     elseif file_path:find("wanxiang_english") then
         content = content:gsub("([%s]*__patch:%s*wanxiang_algebra:/english/)%S+", "%1" .. target_schema)
     elseif file_path:find("wanxiang%.custom") or file_path:find("wanxiang_pro%.custom") then
-        content = content:gsub("([%s%-]*wanxiang_algebra:/pro/)%S+",  "%1" .. target_schema, 1)
+        content = content:gsub("([%s%-]*wanxiang_algebra:/pro/)%S+", "%1" .. target_schema, 1)
         content = content:gsub("([%s%-]*wanxiang_algebra:/base/)%S+", "%1" .. target_schema, 1)
     end
 
     f = io.open(file_path, "w")
-    if not f then 
-        return false 
+    if not f then
+        return false
     end
     f:write(content)
     f:close()
@@ -77,22 +77,26 @@ local function translator(input, seg, env)
                 f:close()
 
                 local n1, n2 = 0, 0
-                content, n1 = content:gsub("(%-+%s*wanxiang_algebra:/pro/)直接辅助(%s*#?.*)", "%1" .. target_aux .. "%2")
-                content, n2 = content:gsub("(%-+%s*wanxiang_algebra:/pro/)间接辅助(%s*#?.*)", "%1" .. target_aux .. "%2")
+                content, n1 =
+                    content:gsub("(%-+%s*wanxiang_algebra:/pro/)直接辅助(%s*#?.*)", "%1" .. target_aux .. "%2")
+                content, n2 =
+                    content:gsub("(%-+%s*wanxiang_algebra:/pro/)间接辅助(%s*#?.*)", "%1" .. target_aux .. "%2")
                 local n = n1 + n2
 
                 if n > 0 then
                     local w = io.open(p, "w")
-                    if w then w:write(content); w:close() end
+                    if w then
+                        w:write(content)
+                        w:close()
+                    end
                     total_hits = total_hits + n
                     touched = touched + 1
                 end
             end
         end
 
-        local msg = (total_hits > 0)
-            and ("已切换到〔" .. target_aux .. "〕，请重新部署")
-            or  "未找到可切换的条目"
+        local msg = (total_hits > 0) and ("已切换到〔" .. target_aux .. "〕，请重新部署")
+            or "未找到可切换的条目"
         yield(Candidate("switch", seg.start, seg._end, msg, ""))
         return
     end
@@ -127,7 +131,7 @@ local function translator(input, seg, env)
         local files = {
             "wanxiang_mixedcode.custom.yaml",
             "wanxiang_reverse.custom.yaml",
-            "wanxiang_english.custom.yaml"
+            "wanxiang_english.custom.yaml",
         }
 
         -- 判断是否为专业版
@@ -138,12 +142,12 @@ local function translator(input, seg, env)
         for _, name in ipairs(files) do
             -- 1. 优先尝试从 系统目录/custom/ 下寻找
             local src = shared_dir .. "/custom/" .. name
-            
+
             -- 2. 如果系统目录没有，尝试从 用户目录/custom/ 下寻找（作为后备）
             if not file_exists(src) then
                 src = user_dir .. "/custom/" .. name
             end
-            
+
             local dest = user_dir .. "/" .. name
 
             if name == fourth_file and custom_file_exists then
@@ -162,9 +166,29 @@ local function translator(input, seg, env)
         -- 返回提示候选
         local location_tip = "系统"
         if custom_file_exists then
-            yield(Candidate("switch", seg.start, seg._end, "检测到已有配置，已切换到〔" .. target_schema .. "〕，请手动重新部署", ""))
+            yield(
+                Candidate(
+                    "switch",
+                    seg.start,
+                    seg._end,
+                    "检测到已有配置，已切换到〔" .. target_schema .. "〕，请手动重新部署",
+                    ""
+                )
+            )
         else
-            yield(Candidate("switch", seg.start, seg._end, "已从"..location_tip.."目录复制并切换到〔" .. target_schema .. "〕，请手动重新部署", ""))
+            yield(
+                Candidate(
+                    "switch",
+                    seg.start,
+                    seg._end,
+                    "已从"
+                        .. location_tip
+                        .. "目录复制并切换到〔"
+                        .. target_schema
+                        .. "〕，请手动重新部署",
+                    ""
+                )
+            )
         end
     end
 end

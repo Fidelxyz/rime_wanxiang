@@ -19,11 +19,12 @@
 local wanxiang = require("wanxiang/wanxiang")
 local M = {}
 --全局通信通道
-_G.WanxiangSharedState = _G.WanxiangSharedState or {
-    sorter_active = false, -- 标记排序脚本是否存活
-    last_input = "",       -- 记录上一次未打斜杠的拼音
-    page_cache = {}        -- 存放排序后的终极缓存
-}
+_G.WanxiangSharedState = _G.WanxiangSharedState
+    or {
+        sorter_active = false, -- 标记排序脚本是否存活
+        last_input = "", -- 记录上一次未打斜杠的拼音
+        page_cache = {}, -- 存放排序后的终极缓存
+    }
 -- 性能优化：本地化字符串函数
 local byte, find, gsub, upper, sub = string.byte, string.find, string.gsub, string.upper, string.sub
 local utf8_codes = utf8.codes -- 本地化 utf8 迭代器
@@ -31,7 +32,9 @@ local utf8_len = utf8.len
 
 local function fast_type(c)
     local t = c.type
-    if t then return t end
+    if t then
+        return t
+    end
     local g = c.get_genuine and c:get_genuine() or nil
     return (g and g.type) or ""
 end
@@ -57,7 +60,9 @@ end
 -- 纯ASCII判定
 local function is_english_candidate(cand)
     local txt = cand and cand.text
-    if not txt or txt == "" then return false end
+    if not txt or txt == "" then
+        return false
+    end
     if not has_english_token_fast(txt) then
         return false
     end
@@ -68,74 +73,73 @@ local function is_english_candidate(cand)
     return true
 end
 
-
 -- 1. 内部常量与工具函数
 local escape_map = {
-    ["\\n"] = "\n",            -- 换行
-    ["\\r"] = "\r",            -- 回车
-    ["\\t"] = "\t",            -- 制表符
-    ["\\s"] = " ",             -- 空格
-    ["\\z"] = "\226\128\139",  -- 零宽空格
+    ["\\n"] = "\n", -- 换行
+    ["\\r"] = "\r", -- 回车
+    ["\\t"] = "\t", -- 制表符
+    ["\\s"] = " ", -- 空格
+    ["\\z"] = "\226\128\139", -- 零宽空格
 }
 
 local utf8_char_pattern = "[%z\1-\127\194-\244][\128-\191]*"
 
 -- 时辰数据：每个时辰2小时，共8刻，每刻15分钟
 local shichen_data = {
-    {name = "子时", start_hour = 23, end_hour = 1},
-    {name = "丑时", start_hour = 1, end_hour = 3},
-    {name = "寅时", start_hour = 3, end_hour = 5},
-    {name = "卯时", start_hour = 5, end_hour = 7},
-    {name = "辰时", start_hour = 7, end_hour = 9},
-    {name = "巳时", start_hour = 9, end_hour = 11},
-    {name = "午时", start_hour = 11, end_hour = 13},
-    {name = "未时", start_hour = 13, end_hour = 15},
-    {name = "申时", start_hour = 15, end_hour = 17},
-    {name = "酉时", start_hour = 17, end_hour = 19},
-    {name = "戌时", start_hour = 19, end_hour = 21},
-    {name = "亥时", start_hour = 21, end_hour = 23},
+    { name = "子时", start_hour = 23, end_hour = 1 },
+    { name = "丑时", start_hour = 1, end_hour = 3 },
+    { name = "寅时", start_hour = 3, end_hour = 5 },
+    { name = "卯时", start_hour = 5, end_hour = 7 },
+    { name = "辰时", start_hour = 7, end_hour = 9 },
+    { name = "巳时", start_hour = 9, end_hour = 11 },
+    { name = "午时", start_hour = 11, end_hour = 13 },
+    { name = "未时", start_hour = 13, end_hour = 15 },
+    { name = "申时", start_hour = 15, end_hour = 17 },
+    { name = "酉时", start_hour = 17, end_hour = 19 },
+    { name = "戌时", start_hour = 19, end_hour = 21 },
+    { name = "亥时", start_hour = 21, end_hour = 23 },
 }
 
 -- 刻数名称：每个时辰有8刻
-local ke_names = {"初刻", "二刻", "三刻", "四刻", "五刻", "六刻", "七刻", "八刻"}
+local ke_names = { "初刻", "二刻", "三刻", "四刻", "五刻", "六刻", "七刻", "八刻" }
 
 -- 获取时辰和刻数
 local function get_shichen_and_ke(hour, min)
     local total_minutes = hour * 60 + min
-    
+
     -- 遍历所有时辰
     for _, shichen in ipairs(shichen_data) do
         local shichen_name = shichen.name
         local start_hour = shichen.start_hour
         local end_hour = shichen.end_hour
-        
+
         -- 计算时辰的起始和结束分钟数
         local start_minutes = start_hour * 60
         local end_minutes = end_hour * 60
-        
+
         -- 处理跨天的子时
         if start_hour > end_hour then
-            end_minutes = end_hour * 60 + 1440  -- 第二天的时间
+            end_minutes = end_hour * 60 + 1440 -- 第二天的时间
         end
-        
+
         -- 检查是否在当前时辰内
         if total_minutes >= start_minutes and total_minutes < end_minutes then
             -- 计算在此时辰内的分钟偏移量
             local offset_minutes = total_minutes - start_minutes
-            
+
             -- 计算刻数索引 (0-7对应初刻-八刻)
             -- 每刻15分钟，四舍五入到最近的刻
             local ke_index = math.floor(offset_minutes / 15)
-            
+
             -- 边界处理：当offset_minutes为120时，应该是八刻，所以索引为7
             if ke_index >= 8 then
                 ke_index = 7
             end
-            
-            return shichen_name, ke_names[ke_index + 1]  -- +1因为Lua数组从1开始
+
+            return shichen_name, ke_names[ke_index + 1] -- +1因为Lua数组从1开始
         end
     end
-    
+
     return "未知时辰", "未知刻"
 end
 local time_tokens_pattern = "\\[AGHIKMNOPSTWYdjlmopwy]"
@@ -145,33 +149,42 @@ local function process_datetime_internal(s)
         return s
     end
     local dt = os.date("*t")
-    
+
     -- 获取时辰和刻数
     local current_shichen, current_ke = get_shichen_and_ke(dt.hour, dt.min)
-    
-    local week_table_big = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"}
-    local week_table_small = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"}
-    
-    local h12 = dt.hour % 12; if h12 == 0 then h12 = 12 end
+
+    local week_table_big = { "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六" }
+    local week_table_small = { "周日", "周一", "周二", "周三", "周四", "周五", "周六" }
+
+    local h12 = dt.hour % 12
+    if h12 == 0 then
+        h12 = 12
+    end
     local ampm = (dt.hour < 12) and "am" or "pm"
     local raw_tz = os.date("%z") or "+0800"
-    local tz_colon = raw_tz:sub(1,3) .. ":" .. raw_tz:sub(4,5)
-    
+    local tz_colon = raw_tz:sub(1, 3) .. ":" .. raw_tz:sub(4, 5)
+
     -- 计算中文时段 A
     local zh_period
     local h = dt.hour
-    if h < 6 then zh_period = "凌晨"
-    elseif h < 12 then zh_period = "上午"
-    elseif h < 13 then zh_period = "中午"
-    elseif h < 18 then zh_period = "下午"
-    else zh_period = "晚上" end
+    if h < 6 then
+        zh_period = "凌晨"
+    elseif h < 12 then
+        zh_period = "上午"
+    elseif h < 13 then
+        zh_period = "中午"
+    elseif h < 18 then
+        zh_period = "下午"
+    else
+        zh_period = "晚上"
+    end
 
     local time_map = {
         Y = string.format("%04d", dt.year),
         y = string.format("%02d", dt.year % 100),
         m = string.format("%02d", dt.month),
         d = string.format("%02d", dt.day),
-        N = tostring(dt.month),  -- 月份不带零（用\N避开\n换行冲突）
+        N = tostring(dt.month), -- 月份不带零（用\N避开\n换行冲突）
         j = tostring(dt.day),
         W = week_table_big[dt.wday],
         w = week_table_small[dt.wday],
@@ -187,11 +200,11 @@ local function process_datetime_internal(s)
         P = ampm:upper(),
         O = tz_colon,
         o = raw_tz,
-        A = zh_period
+        A = zh_period,
     }
 
     return s:gsub("\\(%a)", function(char)
-        return time_map[char] or char 
+        return time_map[char] or char
     end)
 end
 
@@ -205,7 +218,7 @@ local function apply_escape_fast(text)
     -- 第一步：保护 [[...]]
     local blocks = {}
     local s = text:gsub("%[%[(.-)%]%]", function(txt)
-        blocks[#blocks+1] = txt
+        blocks[#blocks + 1] = txt
         return "\0BLK" .. #blocks .. "\0"
     end)
 
@@ -233,9 +246,13 @@ local function apply_escape_fast(text)
 end
 local function format_and_autocap(cand)
     local text = cand.text
-    if not text or text == "" then return cand end
+    if not text or text == "" then
+        return cand
+    end
     local t2, changed = apply_escape_fast(text)
-    if not changed then return cand end
+    if not changed then
+        return cand
+    end
     local nc = Candidate(cand.type, cand.start, cand._end, t2, cand.comment)
     nc.preedit = cand.preedit
     return nc
@@ -249,87 +266,87 @@ end
 --  包裹映射
 local default_wrap_map = {
     -- 单字母：常用成对括号/引号（每项恰好两个字符）
-    a = "[]",        -- 方括号
-    b = "【】",       -- 黑方头括号
-    c = "❲❳",        -- 双大括号 / 装饰括号
-    d = "〔〕",       -- 方头括号
-    e = "⟮⟯",        -- 小圆括号 / 装饰括号
-    f = "⟦⟧",        -- 双方括号 / 数学集群括号
-    g = "「」",       -- 直角引号
+    a = "[]", -- 方括号
+    b = "【】", -- 黑方头括号
+    c = "❲❳", -- 双大括号 / 装饰括号
+    d = "〔〕", -- 方头括号
+    e = "⟮⟯", -- 小圆括号 / 装饰括号
+    f = "⟦⟧", -- 双方括号 / 数学集群括号
+    g = "「」", -- 直角引号
     -- h 预留用于 Markdown 一级标题
-    i = "『』",       -- 双直角引号
-    j = "<>",         -- 尖括号
-    k = "《》",       -- 书名号（双）
-    l = "〈〉",       -- 书名号（单）
-    m = "‹›",         -- 法文单书名号
-    n = "«»",         -- 法文双书名号
-    o = "⦅⦆",          -- 白圆括号
-    p = "⦇⦈",         -- 白方括号
-    q = "()",         -- 圆括号
-    r = "|儿",          --儿化候选
-    s = "［］",        -- 全角方括号
-    t = "⟨⟩",         -- 数学角括号
-    u = "〈〉",        -- 数学尖括号
-    v = "❰❱",        -- 装饰角括号
-    w = "（）",       -- 全角圆括号
-    x = "｛｝",       -- 全角花括号
-    y = "⟪⟫",       -- 双角括号
-    z = "{}",        -- 花括号
+    i = "『』", -- 双直角引号
+    j = "<>", -- 尖括号
+    k = "《》", -- 书名号（双）
+    l = "〈〉", -- 书名号（单）
+    m = "‹›", -- 法文单书名号
+    n = "«»", -- 法文双书名号
+    o = "⦅⦆", -- 白圆括号
+    p = "⦇⦈", -- 白方括号
+    q = "()", -- 圆括号
+    r = "|儿", --儿化候选
+    s = "［］", -- 全角方括号
+    t = "⟨⟩", -- 数学角括号
+    u = "〈〉", -- 数学尖括号
+    v = "❰❱", -- 装饰角括号
+    w = "（）", -- 全角圆括号
+    x = "｛｝", -- 全角花括号
+    y = "⟪⟫", -- 双角括号
+    z = "{}", -- 花括号
 
     --  扩展括号族 / 引号
-    dy = "''",       -- 英文单引号
-    sy = "\"\"",     -- 英文双引号
-    zs = "“”",       -- 中文弯双引号
-    zd = "‘’",       -- 中文弯单引号
-    fy = "``",       -- 反引号
+    dy = "''", -- 英文单引号
+    sy = '""', -- 英文双引号
+    zs = "“”", -- 中文弯双引号
+    zd = "‘’", -- 中文弯单引号
+    fy = "``", -- 反引号
 
     --  双字母括号族
-    aa = "〚〛",      -- 双中括号
-    bb = "〘〙",      -- 双中括号（小）
-    cc = "〚〛",      -- 双中括号（重复，可用于 Lua 匹配）
-    dd = "❨❩",      -- 小圆括号装饰
-    ee = "❪❫",      -- 小圆括号装饰
-    ff = "❬❭",      -- 小尖括号装饰
-    gg = "⦉⦊",      -- 双弯方括号
-    ii = "⦍⦎",      -- 双弯方括号
-    jj = "⦏⦐",      -- 双弯方括号
-    kk = "⦑⦒",      -- 双弯方括号
-    ll = "❮❯",      -- 小尖括号装饰
-    mm = "⌈⌉",      -- 上取整 / 数学符号
-    nn = "⌊⌋",      -- 下取整 / 数学符号
-    oo = "⦗⦘",      -- 双方括号装饰（补齐）
-    pp = "⦙⦚",      -- 双方括号装饰（补齐）
-    qq = "⟬⟭",      -- 小双角括号
-    rr = "❴❵",      -- 花括号装饰
-    ss = "⌜⌝",      -- 数学上角符号
-    tt = "⌞⌟",      -- 数学下角符号
-    uu = "⸢⸣",      -- 装饰方括号
-    vv = "⸤⸥",      -- 装饰方括号
-    ww = "﹁﹂",      -- 中文书名号 / 注释引号
-    xx = "﹃﹄",      -- 中文书名号 / 注释引号
-    yy = "⌠⌡",      -- 数学 / 程序符号
-    zz = "⟅⟆",      -- 数学 / 装饰括号
+    aa = "〚〛", -- 双中括号
+    bb = "〘〙", -- 双中括号（小）
+    cc = "〚〛", -- 双中括号（重复，可用于 Lua 匹配）
+    dd = "❨❩", -- 小圆括号装饰
+    ee = "❪❫", -- 小圆括号装饰
+    ff = "❬❭", -- 小尖括号装饰
+    gg = "⦉⦊", -- 双弯方括号
+    ii = "⦍⦎", -- 双弯方括号
+    jj = "⦏⦐", -- 双弯方括号
+    kk = "⦑⦒", -- 双弯方括号
+    ll = "❮❯", -- 小尖括号装饰
+    mm = "⌈⌉", -- 上取整 / 数学符号
+    nn = "⌊⌋", -- 下取整 / 数学符号
+    oo = "⦗⦘", -- 双方括号装饰（补齐）
+    pp = "⦙⦚", -- 双方括号装饰（补齐）
+    qq = "⟬⟭", -- 小双角括号
+    rr = "❴❵", -- 花括号装饰
+    ss = "⌜⌝", -- 数学上角符号
+    tt = "⌞⌟", -- 数学下角符号
+    uu = "⸢⸣", -- 装饰方括号
+    vv = "⸤⸥", -- 装饰方括号
+    ww = "﹁﹂", -- 中文书名号 / 注释引号
+    xx = "﹃﹄", -- 中文书名号 / 注释引号
+    yy = "⌠⌡", -- 数学 / 程序符号
+    zz = "⟅⟆", -- 数学 / 装饰括号
 
     --  Markdown / 标记
-    md = "**|**",      -- Markdown 粗体
-    jc = "**|**",      -- 加粗
-    it = "__|__",      -- 斜体
-    st = "~~|~~",      -- 删除线
-    eq = "==|==",      -- 高亮
-    ln = "`|`",        -- 行内代码
-    cb = "```|```",    -- 代码块
-    qt = "> |",        -- 引用
-    ul = "- |",        -- 无序列表项
-    ol = "1. |",       -- 有序列表项
-    lk = "[|](url)",   -- 链接
-    im = "![|](img)",  -- 图片
-    h = "# |",         -- 一级标题
-    hh = "## |",       -- 二级标题
-    hhh = "### |",     -- 三级标题
-    hhhh = "#### |",   -- 四级标题
-    sp = "\\|",        -- 反斜杠转义
-    br = "|  ",        -- 换行
-    cm = "",   -- 注释
+    md = "**|**", -- Markdown 粗体
+    jc = "**|**", -- 加粗
+    it = "__|__", -- 斜体
+    st = "~~|~~", -- 删除线
+    eq = "==|==", -- 高亮
+    ln = "`|`", -- 行内代码
+    cb = "```|```", -- 代码块
+    qt = "> |", -- 引用
+    ul = "- |", -- 无序列表项
+    ol = "1. |", -- 有序列表项
+    lk = "[|](url)", -- 链接
+    im = "![|](img)", -- 图片
+    h = "# |", -- 一级标题
+    hh = "## |", -- 二级标题
+    hhh = "### |", -- 三级标题
+    hhhh = "#### |", -- 四级标题
+    sp = "\\|", -- 反斜杠转义
+    br = "|  ", -- 换行
+    cm = "", -- 注释
 
     --  运算与标记符
     pl = "++",
@@ -350,14 +367,24 @@ local default_wrap_map = {
 
 local function load_mapping_from_config(config)
     local symbol_map = {}
-    for k, v in pairs(default_wrap_map) do symbol_map[k] = v end
-    local ok_map, map = pcall(function() return config:get_map("paired_symbols/symkey") end)
+    for k, v in pairs(default_wrap_map) do
+        symbol_map[k] = v
+    end
+    local ok_map, map = pcall(function()
+        return config:get_map("paired_symbols/symkey")
+    end)
     if ok_map and map then
-        local ok_keys, keys = pcall(function() return map:keys() end)
+        local ok_keys, keys = pcall(function()
+            return map:keys()
+        end)
         if ok_keys and keys then
             for _, key in ipairs(keys) do
-                local ok_val, v = pcall(function() return config:get_string("paired_symbols/symkey/" .. key) end)
-                if ok_val and v and #v > 0 then symbol_map[string.lower(key)] = v end
+                local ok_val, v = pcall(function()
+                    return config:get_string("paired_symbols/symkey/" .. key)
+                end)
+                if ok_val and v and #v > 0 then
+                    symbol_map[string.lower(key)] = v
+                end
             end
         end
     end
@@ -382,7 +409,9 @@ local function precompile_wrap_parts(wrap_map, delimiter)
                 local count = 0
                 for _, cp in utf8_codes(wrap_str) do
                     local char = utf8.char(cp)
-                    if count == 0 then first = char end
+                    if count == 0 then
+                        first = char
+                    end
                     last = char
                     count = count + 1
                 end
@@ -409,7 +438,9 @@ function M.init(env)
     env.wrap_delimiter = "|"
     if cfg then
         local d = cfg:get_string("paired_symbols/delimiter")
-        if d and #d > 0 then env.wrap_delimiter = d:sub(1,1) end
+        if d and #d > 0 then
+            env.wrap_delimiter = d:sub(1, 1)
+        end
     end
     env.wrap_parts = precompile_wrap_parts(env.wrap_map, env.wrap_delimiter)
 
@@ -417,10 +448,13 @@ function M.init(env)
     env.symbol = "\\"
     if cfg then
         local sym = cfg:get_string("paired_symbols/symbol") or cfg:get_string("paired_symbols/trigger")
-        if sym and #sym > 0 then env.symbol = sub(sym, 1, 1) end
+        if sym and #sym > 0 then
+            env.symbol = sub(sym, 1, 1)
+        end
     end
 
-    env.cache = nil; env.locked = false
+    env.cache = nil
+    env.locked = false
     -- PageSize & TablePosition
     env.page_size = (cfg and cfg:get_int("menu/page_size"))
 
@@ -435,13 +469,15 @@ function M.init(env)
     local schema_id = env.engine.schema.schema_id
     env.enable_taichi_filter = (schema_id == "wanxiang" or schema_id == "wanxiang_pro")
     env.page_cache = {}
-    
+
     -- 【新增】用于2码记录、3码单字兜底的轻量级状态
-    env.last_2code_char = nil 
+    env.last_2code_char = nil
 end
 
 function M.fini(env)
-    env.wrap_map = nil; env.wrap_parts = nil; env.last_2code_char = nil
+    env.wrap_map = nil
+    env.wrap_parts = nil
+    env.last_2code_char = nil
 end
 
 -- 上屏管道：负责去重、格式化、修饰
@@ -451,16 +487,22 @@ local function emit_with_pipeline(wrapper, ctxs)
 
     -- 2. 太极/句子过滤 (使用缓存的属性)
     if ctxs.enable_taichi_filter and wrapper.has_eng then
-        if cand.comment and find(cand.comment, "\226\152\175") then return false end
+        if cand.comment and find(cand.comment, "\226\152\175") then
+            return false
+        end
     end
 
     -- 3. 英文长句过滤 (Function E)
     if ctxs.drop_sentence_after_completion then
-        if cand.type == "sentence" then return false end
+        if cand.type == "sentence" then
+            return false
+        end
     end
 
     -- 4. 最终去重
-    if ctxs.suppress_set and ctxs.suppress_set[text] then return false end
+    if ctxs.suppress_set and ctxs.suppress_set[text] then
+        return false
+    end
 
     -- 5. 格式化与修饰
     cand = format_and_autocap(cand)
@@ -476,7 +518,7 @@ local function emit_with_pipeline(wrapper, ctxs)
 end
 
 function M.func(input, env)
-    local ctx  = env and env.engine and env.engine.context or nil
+    local ctx = env and env.engine and env.engine.context or nil
     local code = ctx and (ctx.input or "") or ""
     local comp = ctx and ctx.composition or nil
 
@@ -484,7 +526,7 @@ function M.func(input, env)
     if not code or code == "" or (comp and comp:empty()) then
         env.cache, env.locked = nil, false
         -- 【新增】清空兜底缓存
-        env.last_2code_char = nil 
+        env.last_2code_char = nil
     end
 
     -- 计算当前拼音片段长度，用于精确判定2码和3码
@@ -518,7 +560,9 @@ function M.func(input, env)
                     local right = sub(last_text, pos + 1)
                     keep_tail_len = 1 + #right
                     local k = right:lower()
-                    if k ~= "" and env.wrap_map[k] then wrap_key = k end
+                    if k ~= "" and env.wrap_map[k] then
+                        wrap_key = k
+                    end
                 end
             end
         end
@@ -532,41 +576,54 @@ function M.func(input, env)
     local function unify_tail_span(c)
         if fully_consumed and wrap_key and last_seg and c and c._end ~= last_seg._end then
             local nc = Candidate(c.type, c.start, last_seg._end, c.text, c.comment)
-            nc.preedit = c.preedit; return nc
+            nc.preedit = c.preedit
+            return nc
         end
         return c
     end
 
     local emit_ctx = {
-        env = env, ctx = ctx, suppress_set = nil,
+        env = env,
+        ctx = ctx,
+        suppress_set = nil,
         unify_tail_span = unify_tail_span,
         enable_taichi_filter = enable_taichi,
         drop_sentence_after_completion = false, -- 初始化为 false
         code_has_symbol = code_has_symbol,
-        wrap_limit = (env.page_size or 5) * 2
+        wrap_limit = (env.page_size or 5) * 2,
     }
 
     -- 4. 加壳逻辑 (Wrap Logic)
     local function wrap_from_base(wrapper, key)
-        if not wrapper or not key then return nil end
+        if not wrapper or not key then
+            return nil
+        end
         local base_text = wrapper.text
-        if emit_ctx.suppress_set and emit_ctx.suppress_set[base_text] then return nil end
+        if emit_ctx.suppress_set and emit_ctx.suppress_set[base_text] then
+            return nil
+        end
 
-        local pair = env.wrap_map[key]; if not pair then return nil end
+        local pair = env.wrap_map[key]
+        if not pair then
+            return nil
+        end
         local formatted = format_and_autocap(wrapper.cand)
         local pr = env.wrap_parts[key] or { l = "", r = "" }
         local wrapped_text = (pr.l or "") .. (formatted.text or "") .. (pr.r or "")
 
         local start_pos = (last_seg and last_seg.start) or formatted.start or 0
-        local end_pos   = (last_seg and last_seg._end)  or (start_pos + code_len)
+        local end_pos = (last_seg and last_seg._end) or (start_pos + code_len)
 
         local nc = Candidate(formatted.type, start_pos, end_pos, wrapped_text, formatted.comment)
         nc.preedit = formatted.preedit
 
         return {
-            cand = nc, text = wrapped_text,
-            is_table = wrapper.is_table, has_eng = wrapper.has_eng
-        }, base_text
+            cand = nc,
+            text = wrapped_text,
+            is_table = wrapper.is_table,
+            has_eng = wrapper.has_eng,
+        },
+            base_text
     end
 
     local page_size = env.page_size
@@ -585,7 +642,9 @@ function M.func(input, env)
             else
                 local wrapped_w, base_txt = wrap_from_base(wrapper, wrap_key)
                 if wrapped_w then
-                    if not emit_ctx.suppress_set then emit_ctx.suppress_set = {} end
+                    if not emit_ctx.suppress_set then
+                        emit_ctx.suppress_set = {}
+                    end
                     emit_ctx.suppress_set[base_txt] = true
                     final_wrapper = wrapped_w
                 end
@@ -601,7 +660,9 @@ function M.func(input, env)
     local raw_code = ""
     if code_has_symbol then
         local pos = find(code, symbol, 1, true)
-        if pos then raw_code = sub(code, 1, pos - 1) end
+        if pos then
+            raw_code = sub(code, 1, pos - 1)
+        end
     end
 
     -- 动态选择缓存库：排序脚本存活且对得上暗号，就用全局的；否则用自己的兜底
@@ -609,28 +670,38 @@ function M.func(input, env)
     if _G.WanxiangSharedState.sorter_active and _G.WanxiangSharedState.last_input == raw_code then
         target_cache = _G.WanxiangSharedState.page_cache
     end
-    
+
     -- 状态转换判断
-    if code:sub(-1) == symbol or code:find("\\\\$") then 
-        code_has_symbol = false 
+    if code:sub(-1) == symbol or code:find("\\\\$") then
+        code_has_symbol = false
     end
 
     if code_has_symbol and target_cache and #target_cache > 0 then
         for _, c in ipairs(target_cache) do
             local text = c.text
             local w = {
-                cand = c, text = text,
-                is_table = is_table_type(c), has_eng = has_english_token_fast(text)
+                cand = c,
+                text = text,
+                is_table = is_table_type(c),
+                has_eng = has_english_token_fast(text),
             }
             local final_cand = c
-            
+
             if wrap_key then
                 local wrapped_w = wrap_from_base(w, wrap_key)
-                if wrapped_w then final_cand = wrapped_w.cand end
+                if wrapped_w then
+                    final_cand = wrapped_w.cand
+                end
             end
             -- 校准预编辑区长度，动态显隐暗号字母
             if fully_consumed and last_seg then
-                local nc = Candidate(final_cand.type, final_cand.start, last_seg._end, final_cand.text, final_cand.comment or "")
+                local nc = Candidate(
+                    final_cand.type,
+                    final_cand.start,
+                    last_seg._end,
+                    final_cand.text,
+                    final_cand.comment or ""
+                )
                 if wrap_key then
                     nc.preedit = c.preedit or ""
                 else
@@ -649,7 +720,9 @@ function M.func(input, env)
             local fallback_text = env.last_2code_char
             if fallback_text then
                 local start_pos = last_seg and last_seg.start or (#code - 3)
-                if start_pos < 0 then start_pos = 0 end
+                if start_pos < 0 then
+                    start_pos = 0
+                end
                 local end_pos = last_seg and last_seg._end or #code
                 local nc = Candidate("fallback", start_pos, end_pos, fallback_text, "")
                 -- 分割预编辑区，例如输入 "abc" -> 显示 "ab c"
@@ -675,7 +748,7 @@ function M.func(input, env)
                 cand = cand,
                 text = txt,
                 is_table = is_table_type(cand),
-                has_eng = has_english_token_fast(txt)
+                has_eng = has_english_token_fast(txt),
             }
 
             if idx == 1 then
@@ -695,16 +768,18 @@ function M.func(input, env)
                 end
 
                 -- Locked state: emit cache
-                if env.locked and (not wrap_key) and env.cache then
+                if env.locked and not wrap_key and env.cache then
                     local base = format_and_autocap(env.cache)
                     local start_pos = (last_seg and last_seg.start) or 0
-                    local end_pos   = (last_seg and last_seg._end) or code_len
-                    if keep_tail_len > 0 then end_pos = math.max(start_pos, end_pos - keep_tail_len) end
+                    local end_pos = (last_seg and last_seg._end) or code_len
+                    if keep_tail_len > 0 then
+                        end_pos = math.max(start_pos, end_pos - keep_tail_len)
+                    end
 
                     local nc = Candidate(base.type, start_pos, end_pos, base.text, base.comment)
                     nc.preedit = base.preedit
 
-                    if emit_with_pipeline({cand=nc, text=base.text, has_eng=w.has_eng}, emit_ctx) then
+                    if emit_with_pipeline({ cand = nc, text = base.text, has_eng = w.has_eng }, emit_ctx) then
                         visual_idx = visual_idx + 1
                     end
                     goto continue_loop
@@ -712,10 +787,13 @@ function M.func(input, env)
 
                 -- Wrap first cand
                 if wrap_key and env.cache then
-                    local cache_w = {cand=env.cache, text=env.cache.text, is_table=w.is_table, has_eng=w.has_eng}
+                    local cache_w =
+                        { cand = env.cache, text = env.cache.text, is_table = w.is_table, has_eng = w.has_eng }
                     local wrapped_w, base_txt = wrap_from_base(cache_w, wrap_key)
                     if wrapped_w then
-                        if not emit_ctx.suppress_set then emit_ctx.suppress_set = {} end
+                        if not emit_ctx.suppress_set then
+                            emit_ctx.suppress_set = {}
+                        end
                         emit_ctx.suppress_set[base_txt] = true
                         if emit_with_pipeline(wrapped_w, emit_ctx) then
                             visual_idx = visual_idx + 1
@@ -737,8 +815,8 @@ function M.func(input, env)
     local idx2 = 0
     local mode = "unknown" -- unknown | passthrough | grouping
 
-    local normal_buf = {}   -- 存 Normal
-    local special_buf = {}  -- 存 Table/UserTable
+    local normal_buf = {} -- 存 Normal
+    local special_buf = {} -- 存 Table/UserTable
 
     local function try_flush_page_sort(force_all)
         while true do
@@ -751,13 +829,21 @@ function M.func(input, env)
             local w_to_emit = nil
             if force_all then
                 if allow_special then
-                    if #special_buf > 0 then w_to_emit = table.remove(special_buf, 1)
-                    elseif #normal_buf > 0 then w_to_emit = table.remove(normal_buf, 1) end
+                    if #special_buf > 0 then
+                        w_to_emit = table.remove(special_buf, 1)
+                    elseif #normal_buf > 0 then
+                        w_to_emit = table.remove(normal_buf, 1)
+                    end
                 else
-                    if #normal_buf > 0 then w_to_emit = table.remove(normal_buf, 1)
-                    elseif #special_buf > 0 then w_to_emit = table.remove(special_buf, 1) end
+                    if #normal_buf > 0 then
+                        w_to_emit = table.remove(normal_buf, 1)
+                    elseif #special_buf > 0 then
+                        w_to_emit = table.remove(special_buf, 1)
+                    end
                 end
-                if not w_to_emit then break end
+                if not w_to_emit then
+                    break
+                end
             else
                 if allow_special then
                     if #special_buf > 0 then
@@ -794,7 +880,7 @@ function M.func(input, env)
             cand = cand,
             text = txt,
             is_table = is_table_type(cand),
-            has_eng = has_english_token_fast(txt)
+            has_eng = has_english_token_fast(txt),
         }
 
         if idx2 == 1 then
@@ -803,33 +889,49 @@ function M.func(input, env)
                 env.last_2code_char = txt
             end
 
-            if not env.locked then env.cache = clone_candidate(format_and_autocap(cand)) end
+            if not env.locked then
+                env.cache = clone_candidate(format_and_autocap(cand))
+            end
             if w.is_table and #txt >= 4 and w.has_eng then
                 emit_ctx.drop_sentence_after_completion = true
             end
 
             local emitted = false
-            if env.locked and (not wrap_key) and env.cache then
+            if env.locked and not wrap_key and env.cache then
                 local base = format_and_autocap(env.cache)
                 local start_pos = (last_seg and last_seg.start) or 0
-                local end_pos   = (last_seg and last_seg._end) or code_len
-                if keep_tail_len > 0 then end_pos = math.max(start_pos, end_pos - keep_tail_len) end
+                local end_pos = (last_seg and last_seg._end) or code_len
+                if keep_tail_len > 0 then
+                    end_pos = math.max(start_pos, end_pos - keep_tail_len)
+                end
                 local nc = Candidate(base.type, start_pos, end_pos, base.text, base.comment)
                 nc.preedit = base.preedit
-                if emit_with_pipeline({cand=nc, text=base.text, has_eng=w.has_eng}, emit_ctx) then
-                    visual_idx = visual_idx + 1; emitted = true
+                if emit_with_pipeline({ cand = nc, text = base.text, has_eng = w.has_eng }, emit_ctx) then
+                    visual_idx = visual_idx + 1
+                    emitted = true
                 end
             elseif wrap_key then
-                local cache_w = {cand=env.cache or cand, text=(env.cache or cand).text, is_table=w.is_table, has_eng=w.has_eng}
+                local cache_w = {
+                    cand = env.cache or cand,
+                    text = (env.cache or cand).text,
+                    is_table = w.is_table,
+                    has_eng = w.has_eng,
+                }
                 local wrapped_w, base_txt = wrap_from_base(cache_w, wrap_key)
                 if wrapped_w then
-                    if not emit_ctx.suppress_set then emit_ctx.suppress_set = {} end
+                    if not emit_ctx.suppress_set then
+                        emit_ctx.suppress_set = {}
+                    end
                     emit_ctx.suppress_set[base_txt] = true
-                    if emit_with_pipeline(wrapped_w, emit_ctx) then visual_idx = visual_idx + 1; emitted = true end
+                    if emit_with_pipeline(wrapped_w, emit_ctx) then
+                        visual_idx = visual_idx + 1
+                        emitted = true
+                    end
                 end
             end
-            if not emitted then try_process_wrapper(w) end
-
+            if not emitted then
+                try_process_wrapper(w)
+            end
         elseif idx2 == 2 and mode == "unknown" then
             if w.is_table then
                 mode = "passthrough"
@@ -839,23 +941,24 @@ function M.func(input, env)
                 table.insert(normal_buf, w)
                 try_flush_page_sort(false)
             end
-
         else
             if mode == "passthrough" then
                 try_process_wrapper(w)
             else
                 if (not window_closed) and (grouped_cnt < sort_window) then
                     grouped_cnt = grouped_cnt + 1
-                    if w.is_table and (not w.has_eng) then
+                    if w.is_table and not w.has_eng then
                         table.insert(special_buf, w)
                     else
                         table.insert(normal_buf, w)
                     end
 
-                    if grouped_cnt >= sort_window then window_closed = true end
+                    if grouped_cnt >= sort_window then
+                        window_closed = true
+                    end
                     try_flush_page_sort(false)
                 else
-                    if w.is_table and (not w.has_eng) then
+                    if w.is_table and not w.has_eng then
                         table.insert(special_buf, w)
                     else
                         table.insert(normal_buf, w)
