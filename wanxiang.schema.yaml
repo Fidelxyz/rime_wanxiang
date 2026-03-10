@@ -8,7 +8,7 @@ schema:
   author:
     - amzxyz
   description: |
-    请勾选【万象拼音】以启用，万象拼音标准版本，带声调的词库，支持语法模型，全拼、简拼、整句、声调辅助筛选，拥有超越大厂的输入体验！
+    请勾选【万象拼音】以启用，万象拼音标准版本，带声调的词库，支持语法模型，全拼、简拼、整句，拥有超越大厂的输入体验！
     【文本框输入：/pinyin全拼，/zrm自然码,/flypy小鹤，/mspy,/sogou,/pyjj等，详见README.md】
   dependencies:
     - wanxiang_mixedcode    #混合编码
@@ -27,9 +27,6 @@ switches:
     states: [ 半角, 全角 ]
   - name: emoji                         #候选出现emoji滤镜，会显示在相应的候选后面，万象侧重于tips提示，避免候选被占用，因此默认为reset: 0，归属opencc emoji滤镜
     states: [表情关, 表情开]
-  - options: [ raw_input, tone_display, full_pinyin ]   #开启后在输入编码的位置实时转换为带声调全拼或者不带声调全拼，不开启则采用系统配置原始编码，影响的是preedit_format,归属：super_preedit.lua
-    states: [ 原编码, 有声调, 无声调 ]
-#    reset: 2     #对于开关组从0开始数，第几个就reset几可设为默认
   - options: [ s2s, s2t, s2hk, s2tw ]   # 简繁转换开关组，可以在一个空选项和多个实际“- simplifier@s2hk”引入的项目之前切换，这是一个开关组，你可以将其中任意一个s2s等设置为toggle快捷键，多次按下将轮询
     states: [ 简体, 通繁, 港繁, 臺繁 ]
   - options: [ abbrev_off, abbrev_lazy, abbrev_always ]
@@ -48,7 +45,7 @@ switches:
 # 输入引擎
 engine:
   processors:
-    - lua_processor@*wanxiang.super_processor            #KP小键盘、字母选词、符号快打、超强分词、重复限制、退格限制、声调回退、以词定字
+    - lua_processor@*wanxiang.super_processor            #KP小键盘、字母选词、符号快打、超强分词、重复限制、退格限制、以词定字
     - lua_processor@*wanxiang.partial_commit             #通过ctrl+1~0局部提交10个字以内的句子的前几个字（一般为正确的前几个）使用时要遵循合理的分词结构能促进后续编码打出正确的词汇
     - lua_processor@*wanxiang.super_tips                 #超级提示模块：表情、简码、翻译、化学式、等等靠你想象
     - lua_processor@*wanxiang.super_sequence*P           #手动排序，高亮候选 ctrl+j左移动 ctrl+k 右移动 ctrl+l 移除位移  ctrl+p 置顶
@@ -221,12 +218,6 @@ kp_number_mode: auto
 #成语简码前置位置，只能设置在第一页，大于当前页数量则默认在最后一个，0代表关闭前置
 idiom_preposition: 0
 
-#常规状态下数字转换成相应的字符，由超级preedit接管
-tone_preedit:
-  "7": "¹"
-  "8": "²"
-  "9": "³"
-  "0": "⁴"
 
 # a/、单字母组合，触发预设编码自动上屏快符，支持将值设为"repeat" 以支持对应按键重复上屏功能，custom>schema>lua最终合并键值
 # 现在就支持26字母快符，结合成对符号输入，这边的压力小一些
@@ -447,7 +438,6 @@ wanxiang_lookup: #设置归属于super_lookup.lua
   key: "`"       # 输入中反查引导符，要添加到 speller/alphabet
   lookup: [ wanxiang_reverse ] #反查滤镜数据库，万象都合并为一个了
   data_source: [db]  #对于pro版本能从注释中加载词库辅助码，详情见Pro版本，base这里无需修改。
-  enable_tone: true  #启用声调反查
 
 # 处理符合特定规则的输入码，如网址、反查
 recognizer:
@@ -510,8 +500,6 @@ key_binder:
     #- { when: has_menu, accept: semicolon, send: 2 }
 #使用快捷键Control+a开启和关闭辅助码显示
     - { when: has_menu, accept: "Control+a", toggle: tone_hint }
-#通过快捷键Control+s使得输入码显示音调
-    - { when: has_menu, accept: "Control+s", toggle: tone_display }
 #通过快捷键Control+t开启超级tips
     - { when: has_menu, accept: "Control+t", toggle: super_tips }
 #通过快捷键Control+g开启字符集过滤
@@ -561,12 +549,10 @@ speller:
 #  auto_select: true
 #  auto_select_pattern: ^[a-z]+/|^[a-df-zA-DF-Z]\w{3}|^e\w{4}
   # 如果不想让什么标点直接上屏，可以加在 alphabet，或者编辑标点符号为两个及以上的映射，alphabet就是将字符纳入输入编码的范畴
-  alphabet: zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA1234567890`;/\
+  alphabet: zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA123456`;/\
   # initials 定义仅作为始码的按键，排除 ` 让单个的 ` 可以直接上屏
   initials: zyxwvutsrqponmlkjihgfedcbaZYXWVUTSRQPONMLKJIHGFEDCBA/
   delimiter: " '"        # 系统配置，第一位<空格>是拼音之间的分隔符；第二位<'>表示可以手动输入单引号来分割拼音。
-  visual_delimiter: " "  # super_preedit.lua配置：是否让分隔符号跟着一起转换，例如nǐ'hǎo 在实际使用中表现出视觉拥挤，我们可以让delimiter平时是'转换为拼音的时候使用空格nǐ hǎo，更符合实际。
-  tone_isolate: true     # super_preedit.lua配置：是否将数字声调从转换后拼音中隔离出来（true=隔离， false 直接参与转换）例如：nǐ3
   algebra:
     __patch:
       #- 模糊音             #模糊音选择性开启

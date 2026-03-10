@@ -3,37 +3,17 @@
   --tags: [ abc ]  # 检索当前tag的候选
   --key: "`"       # 输入中反查引导符
   --lookup: [ wanxiang_reverse ] #反查滤镜数据库
-  --data_source: [ aux, db ] # 优先级：写在前面优先。即使只写db，只要开启enable_tone也能从注释获取声调。
-  --enable_tone: true  #启用声调反查
+  --data_source: [ aux, db ] # 优先级：写在前面优先。
 
 -- 工具函数：转义正则特殊字符
 local function alt_lua_punc(s)
     return s and s:gsub('([%.%+%-%*%?%[%]%^%$%(%)%%])', '%%%1') or ''
 end
--- 声调映射表
-local tones_map = {
-    ["ā"]="7", ["á"]="8", ["ǎ"]="9", ["à"]="0",
-    ["ō"]="7", ["ó"]="8", ["ǒ"]="9", ["ò"]="0",
-    ["ē"]="7", ["é"]="8", ["ě"]="9", ["è"]="0",
-    ["ī"]="7", ["í"]="8", ["ǐ"]="9", ["ì"]="0",
-    ["ū"]="7", ["ú"]="8", ["ǔ"]="9", ["ù"]="0",
-    ["ǖ"]="7", ["ǘ"]="8", ["ǚ"]="9", ["ǜ"]="0"
-}
 -- 高性能 UTF8 长度获取
 local function get_utf8_len(s)
     if utf8 and utf8.len then return utf8.len(s) end
     local _, count = string.gsub(s, "[^\128-\193]", "")
     return count
-end
--- 提取声调数字 (无声调/轻声 -> 默认归为 0)
-local function get_tone_from_pinyin(pinyin)
-    if not pinyin or #pinyin == 0 then return nil end
-    for char, tone in pairs(tones_map) do
-        if string.find(pinyin, char, 1, true) then
-            return tone
-        end
-    end
-    return "0"
 end
 
 -- 规则加载
@@ -252,7 +232,7 @@ local function split_lookup_input(input, key, bypass_prefix)
     return code, fuma, s_start, s_end
 end
 
-local function parse_comment_codes(comment, pattern, target_len, enable_tone)
+local function parse_comment_codes(comment, pattern, target_len)
     if not comment or comment == "" then return nil end
     local parts = {}
     
@@ -266,30 +246,20 @@ local function parse_comment_codes(comment, pattern, target_len, enable_tone)
     local result = {}
     for i, part in ipairs(parts) do
         local p1, p2 = part:find(";")
-        local pinyin_part
         local codes_part
         
         if p1 then
-            pinyin_part = part:sub(1, p1 - 1)
             codes_part = part:sub(p2 + 1)
         else
-            pinyin_part = part
             codes_part = ""
         end
         
         local codes_list = {}
-        -- 1. 提取辅码
+        -- 提取辅码
         if #codes_part > 0 then
             for c in codes_part:gmatch("[^,]+") do 
                 local trimmed = c:gsub("^%s+", ""):gsub("%s+$", "")
                 if #trimmed > 0 then table.insert(codes_list, trimmed) end
-            end
-        end
-        -- 2. 提取声调 (如果开启)
-        if enable_tone then
-            local tone = get_tone_from_pinyin(pinyin_part)
-            if tone then
-                table.insert(codes_list, tone)
             end
         end
         result[i] = codes_list
@@ -302,11 +272,7 @@ local f = {}
 function f.init(env)
     local config = env.engine.schema.config
     
-    -- 1. 开启声调
-    env.enable_tone = config:get_bool('wanxiang_lookup/enable_tone')
-    if env.enable_tone == nil then env.enable_tone = true end
-
-    -- 2. 读取数据源
+    -- 1. 读取数据源
     local sources_list = config:get_list('wanxiang_lookup/data_source')
     env.data_sources = {}
     
@@ -326,8 +292,8 @@ function f.init(env)
         env.has_db = true
     end
 
-    -- 核心逻辑：只要配置了 aux 源，或者开启了 enable_tone (需要借声调)，就必须解析注释
-    env.has_comment = config_has_aux_source or env.enable_tone
+    -- 核心逻辑：只要配置了 aux 源，就必须解析注释
+    env.has_comment = config_has_aux_source
 
     env.db_table = nil
     if env.has_db then
@@ -409,17 +375,7 @@ function f.func(input, env)
     if not s_start then for cand in input:iter() do yield(cand) end return end
     if #fuma == 0 then for cand in input:iter() do yield(cand) end return end
 
-    local tone_filter_seq = {}
-    local clean_fuma = ""
-    for i = 1, #fuma do
-        local char = fuma:sub(i, i)
-        if char == "7" or char == "8" or char == "9" or char == "0" then
-            table.insert(tone_filter_seq, char)
-        else
-            clean_fuma = clean_fuma .. char
-        end
-    end
-    local apply_tone_filter = env.enable_tone and (#tone_filter_seq > 0)
+    local clean_fuma = fuma
 
     local if_single_char_first = env.engine.context:get_option('char_priority')
     local buckets = {}
@@ -453,13 +409,11 @@ function f.func(input, env)
             if comment_text ~= "" then
                 local cache_key = cand_text .. "_" .. comment_text
                 if not comment_cache[cache_key] then
-                    comment_cache[cache_key] = parse_comment_codes(comment_text, env.comment_split_ptrn, cand_len, env.enable_tone) or false
+                    comment_cache[cache_key] = parse_comment_codes(comment_text, env.comment_split_ptrn, cand_len) or false
                     env.cache_size = env.cache_size + 1
                 end
                 if comment_cache[cache_key] then
                     raw_data.aux = comment_cache[cache_key]
-                    -- 同时赋给 _comment_internal，用于 data_source: [db] 借用声调
-                    raw_data._comment_internal = comment_cache[cache_key]
                 end
             end
         end
@@ -495,59 +449,31 @@ function f.func(input, env)
             end
         end
 
-        -- 提取借用声调
-        local borrowed_tones = {} 
-        if raw_data._comment_internal then
-            for k, codes in ipairs(raw_data._comment_internal) do
-                borrowed_tones[k] = {}
-                for _, c in ipairs(codes) do
-                    if c:match("^%d+$") then borrowed_tones[k][c] = true end
-                end
-            end
-        end
-
         local matched_idx = nil
 
         for i, source_type in ipairs(env.data_sources) do
             local codes_seq = raw_data[source_type]
             if codes_seq then
-                local tone_match_pass = true
-                if apply_tone_filter then
-                    for k, tone_input in ipairs(tone_filter_seq) do
-                        if k > #codes_seq then break end
-                        local has_tone = list_contains(codes_seq[k], tone_input)
-                        if not has_tone and source_type == 'db' then
-                            if borrowed_tones[k] and borrowed_tones[k][tone_input] then has_tone = true end
-                        end
-                        if not has_tone then
-                            tone_match_pass = false
-                            break
-                        end
+                local is_match = false
+                if source_type == 'aux' then
+                    if cand_len == 1 then
+                        if group_match(codes_seq[1], clean_fuma) then is_match = true end
+                    else
+                        local memo = {}
+                        if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, false) then is_match = true end
+                    end
+                elseif source_type == 'db' then
+                    if cand_len == 1 then
+                         if group_match(codes_seq[1], clean_fuma) then is_match = true end
+                    else
+                         local memo = {}
+                         if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, true) then is_match = true end
                     end
                 end
-
-                if tone_match_pass then
-                    local is_match = false
-                    if source_type == 'aux' then
-                        if cand_len == 1 then
-                            if group_match(codes_seq[1], clean_fuma) then is_match = true end
-                        else
-                            local memo = {}
-                            if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, false) then is_match = true end
-                        end
-                    elseif source_type == 'db' then
-                        if cand_len == 1 then
-                             if group_match(codes_seq[1], clean_fuma) then is_match = true end
-                        else
-                             local memo = {}
-                             if match_fuzzy_recursive(codes_seq, 1, clean_fuma, 1, memo, true) then is_match = true end
-                        end
-                    end
-                    
-                    if is_match then
-                        matched_idx = i
-                        break 
-                    end
+                
+                if is_match then
+                    matched_idx = i
+                    break 
                 end
             end
         end
@@ -583,19 +509,6 @@ function f.func(input, env)
     end
     
     for _, c in ipairs(long_word_cands) do yield(c) end
-
-    if not has_any_match and apply_tone_filter and #clean_fuma > 0 and env.has_db and env.db_table then
-        for _, db_obj in ipairs(env.db_table) do
-            local res_str = db_obj:lookup(clean_fuma)
-            if res_str and #res_str > 0 then
-                for word in res_str:gmatch("%S+") do
-                    local cand = Candidate("wanxiang_shadow", s_end, #ctx_input, word, "")
-                    cand.quality = 1 
-                    yield(cand)
-                end
-            end
-        end
-    end
 end
 
 function f.tags_match(seg, env)
