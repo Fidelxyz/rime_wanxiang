@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # 手动触发
   push:
     branches:
-      - wanxiang
+      - main
 
 concurrency:
   group: release-branch
@@ -194,8 +194,8 @@ jobs:
         run: |-
           set -euo pipefail
 
-          # 当前开发分支（通常是 wanxiang）
-          ORIG_BRANCH="$(git rev-parse --abbrev-ref HEAD || echo 'wanxiang')"
+          # 当前开发分支（通常是 main）
+          ORIG_BRANCH="$(git rev-parse --abbrev-ref HEAD || echo 'main')"
 
           # 方案列表
           schemes=("base" "shouyou-fuzhu" "zrm-fuzhu" "tiger-fuzhu" "moqi-fuzhu" "flypy-fuzhu" "wubi-fuzhu" "hanxin-fuzhu")
