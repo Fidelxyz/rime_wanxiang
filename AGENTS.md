@@ -171,6 +171,10 @@ When modifying functional code (Lua) or configuration (YAML), always check if th
 impact the features described in `README.md` or the implementation mappings in `FEATURES.md`.
 Update these documentation files accordingly to keep them in sync with the codebase.
 
+If a feature is removed, do not just delete its entry from `FEATURES.md`.
+Move it into the `## 已移除功能` section and list the deleted files/config blocks so future
+merges can resolve upstream conflicts and reintroductions safely.
+
 ## Key Warnings for Agents
 
 1. **No test suite** — There are no tests to run. Verify changes by reading code carefully.

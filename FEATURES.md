@@ -187,15 +187,6 @@
 | `lua/wanxiang/super_comment_preedit.lua` | 错音纠正注释逻辑 |
 | `dicts/cuoyin.dict.yaml` | 错音词条数据 |
 
-### 快符 Lua
-
-单字母 + `/` 快速上屏自定义符号（如 `a/` 上屏"！"），支持 `repeat` 重复上屏。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_processor.lua` | 快符处理逻辑（`quick_symbol_text` 映射） |
-| `wanxiang.schema.yaml` | `quick_symbol_text` 自定义映射段 |
-
 ### 短语格式化 Lua
 
 自定义短语中 `\n` `\s` `\t` 等转换为实际换行/空格/制表符，支持重复字符与动态变量。
@@ -346,12 +337,12 @@ Ctrl+1~0 上屏首选前 N 个字，保留后续编码。
 
 ### 万能键斜杠 `/`
 
-辅助码聚拢、间接辅助码引导、短码英文前置、快符、双击上屏斜杠。
+辅助码聚拢、间接辅助码引导、短码英文前置、双击上屏斜杠。
 
 | 实现位置 | 说明 |
 |----------|------|
 | `wanxiang_algebra.yaml` | `/` 相关的转写规则（辅助码聚拢、英文前置） |
-| `lua/wanxiang/super_processor.lua` | 快符逻辑、双击斜杠 |
+| `lua/wanxiang/super_processor.lua` | 双击斜杠 |
 | `wanxiang.schema.yaml` | 斜杠相关的 speller/recognizer 配置 |
 
 ---
@@ -445,6 +436,18 @@ Ctrl+1~0 上屏首选前 N 个字，保留后续编码。
 
 以下功能已从本仓库中移除。保留记录以便从上游合并时参考。
 
+### 快符输入 Lua
+
+单字母 + `/` 快速上屏自定义符号（如 `a/` 上屏"！"），支持 `repeat` 重复上屏。
+
+| 已删除文件/配置 | 说明 |
+|-----------------|------|
+| `lua/wanxiang/super_processor.lua` | 快符处理逻辑（`quick_symbol_text` 映射、拦截与自动上屏） |
+| `wanxiang.schema.yaml` | `quick_symbol_text` 配置段 |
+| `custom/wanxiang_pro.schema.yaml` | `quick_symbol_text` 配置段 |
+| `custom/wanxiang.custom.yaml` | `quick_symbol_text` 配置段（模板） |
+| `custom/wanxiang_pro.custom.yaml` | `quick_symbol_text` 配置段（模板） |
+
 ### 超级 Tips
 
 表情、化学式、翻译、简码提示等，通过自定义按键直接上屏，不占候选框。
@@ -453,7 +456,7 @@ Ctrl+1~0 上屏首选前 N 个字，保留后续编码。
 |-----------------|------|
 | `lua/wanxiang/super_tips.lua` | Tips 系统（257 行），LevelDB 数据库 `lua/tips.userdb` |
 | `lua/data/tips_show.txt` | Tips 自带数据（7009 行） |
-| `lua/data/tips_user.txt预留自定义文件` | Tips 用户自定义数据（已在前序提交中删除） |
+| `lua/data/tips_user.txt预留自定义文件` | Tips 用户自定义数据 |
 | `wanxiang.schema.yaml` 等 | `tips` 段配置（`disabled_types`、`tips_key`）、Ctrl+t 开关、`super_tips` 开关与处理器 |
 
 ### 时间日期 Lua（shijian）
