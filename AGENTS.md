@@ -175,6 +175,9 @@ If a feature is removed, do not just delete its entry from `FEATURES.md`.
 Move it into the `## 已移除功能` section and list the deleted files/config blocks so future
 merges can resolve upstream conflicts and reintroductions safely.
 
+Also add the removed feature to the **精简说明** table in `README.md` so the fork's diff from
+upstream is clearly documented for users.
+
 ## Key Warnings for Agents
 
 1. **No test suite** — There are no tests to run. Verify changes by reading code carefully.

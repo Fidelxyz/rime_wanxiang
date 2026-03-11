@@ -706,11 +706,8 @@ end
 -- 十、Filter (含标记可视化)
 ------------------------------------------------------------
 local F = {}
--- ✨ 初始化时读取用户设置的触发符号
 function F.init(env)
     local cfg = env.engine.schema.config
-    local sym = cfg and (cfg:get_string("paired_symbols/symbol") or cfg:get_string("paired_symbols/trigger")) or "\\"
-    env.symbol = string.sub(sym, 1, 1)
     env.page_size = cfg and cfg:get_int("menu/page_size") or 5
 end
 function F.fini()
@@ -818,15 +815,8 @@ function F.func(input, env)
     -- ✨ 宣告：排序脚本活着，包裹脚本你别自己干活了，交给我！
     _G.WanxiangSharedState.sorter_active = true
     local context = env.engine.context
-    local code = context.input
-    local symbol = env.symbol or "\\"
-    local is_code_has_symbol = code and (string.find(code, symbol, 1, true) ~= nil)
-
-    -- 如果没有输入斜杠，说明是正常的选词排版过程，准备好全新的全局缓存
-    if not is_code_has_symbol then
-        _G.WanxiangSharedState.last_input = code
-        _G.WanxiangSharedState.page_cache = {}
-    end
+    _G.WanxiangSharedState.last_input = context.input
+    _G.WanxiangSharedState.page_cache = {}
 
     local cache_limit = (env.page_size or 5) * 2
 
@@ -834,7 +824,7 @@ function F.func(input, env)
     local function original_list()
         local top_count = 0
         for cand in input:iter() do
-            if not is_code_has_symbol and top_count < cache_limit then
+            if top_count < cache_limit then
                 table.insert(_G.WanxiangSharedState.page_cache, clone_candidate(cand))
                 top_count = top_count + 1
             end
@@ -918,7 +908,6 @@ function F.func(input, env)
 
     local bottom_count = 0
     for _, cand in ipairs(cands) do
-        local cmt = cand.comment or ""
         if show_markers and prev_adjustments then
             local key = is_fun_mode and tostring(cand.text) or cand.text
 
@@ -943,7 +932,7 @@ function F.func(input, env)
         end
 
         -- ✨ 把带好标记、排好序的终极状态，克隆进全局缓存，等包裹脚本来取！
-        if not is_code_has_symbol and bottom_count < cache_limit then
+        if bottom_count < cache_limit then
             table.insert(_G.WanxiangSharedState.page_cache, clone_candidate(cand))
             bottom_count = bottom_count + 1
         end -- ✨
