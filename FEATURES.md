@@ -40,7 +40,7 @@
 
 ### 创新 Lua 扩展
 
-成对符号包裹首选、输入后反查、OpenCC 替代、超级注释、手动实时排序、无感造词。
+输入后反查、OpenCC 替代、超级注释、手动实时排序、无感造词。
 
 > 各功能的具体实现见下方"功能一览"各节。
 
@@ -195,15 +195,6 @@
 |----------|------|
 | `lua/wanxiang/super_filter.lua` | 转义序列格式化逻辑 |
 | `custom_phrase.txt` (用户目录) | 自定义短语数据源 |
-
-### 成对符号包裹 Lua
-
-输入编码末尾追加 `\a` 等触发成对符号包裹（如 `\k` 映射 `《》`）。
-
-| 实现位置 | 说明 |
-|----------|------|
-| `lua/wanxiang/super_filter.lua` | 成对符号包裹逻辑（`wrap_parts` 映射） |
-| `wanxiang.schema.yaml` | 符号包裹映射配置段 |
 
 ### 输入模式切换 Lua
 
@@ -475,6 +466,19 @@ Ctrl+1~0 上屏首选前 N 个字，保留后续编码。
 | `custom/wanxiang_pro.schema.yaml` | `quick_symbol_text` 配置段 |
 | `custom/wanxiang.custom.yaml` | `quick_symbol_text` 配置段（模板） |
 | `custom/wanxiang_pro.custom.yaml` | `quick_symbol_text` 配置段（模板） |
+
+### 成对符号包裹 Lua
+
+输入编码末尾追加 `\a` 等触发成对符号包裹（如 `\k` 映射 `《》`）。
+
+| 已删除文件/配置 | 说明 |
+|-----------------|------|
+| `lua/wanxiang/super_filter.lua` | 成对符号包裹逻辑（`wrap_parts` 映射） |
+| `lua/wanxiang/super_sequence.lua` | 成对符号触发符读取与兼容缓存路径 |
+| `wanxiang.schema.yaml` | `paired_symbols` 配置段 |
+| `custom/wanxiang_pro.schema.yaml` | `paired_symbols` 配置段 |
+| `custom/wanxiang.custom.yaml` | `paired_symbols` 配置段（模板） |
+| `custom/wanxiang_pro.custom.yaml` | `paired_symbols` 配置段（模板） |
 
 ### 超级 Tips
 
