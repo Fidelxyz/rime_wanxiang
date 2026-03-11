@@ -417,8 +417,6 @@ punctuator/digit_separators: ","  →  punctuator/digit_separators: commit
 
 **错音错字提示**：如输入 `gei yu 给予`，会提示正确读音 `jǐ yǔ`，全拼双拼均支持。
 
-**快符 Lua**：通过 `字母/` 快速上屏映射字符，如 `a/`。
-
 **短语格式化 Lua**：将 `custom_phrase.txt` 中的 `\n`、`\s`、`\t` 等转换为实际的换行、空格、制表符，支持动态变量（时间、日期等）。
 
 **成对符号包裹 Lua**：输入词汇编码后按 `\` 锁定，再按映射字符触发成对符号包裹首选候选。

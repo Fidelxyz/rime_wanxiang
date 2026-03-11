@@ -1,7 +1,7 @@
 -- lua/super_processor.lua
 -- @amzxyz
 -- https://github.com/amzxyz/rime_wanxiang
--- 全能按键处理器：整合 KP小键盘、字母选词、符号快打、超强分词、重复限制、退格限制、以词定字
+-- 全能按键处理器：整合 KP小键盘、字母选词、超强分词、重复限制、退格限制、以词定字
 --
 -- 用法: 在 schema.yaml 中 engine/processors 列表添加 - lua_processor@*super_processor
 
@@ -38,36 +38,6 @@ local LETTER_SEL_MAP = {
     [0x69] = 8,
     [0x6F] = 9,
     [0x70] = 10,
-}
-
--- [QuickSymbol] 默认符号映射表
-local SYMBOL_DEFAULT = {
-    q = "：",
-    w = "？",
-    e = "（",
-    r = "）",
-    t = "~",
-    y = "·",
-    u = "『",
-    i = "』",
-    o = "〖",
-    p = "〗",
-    a = "！",
-    s = "……",
-    d = "、",
-    f = "“",
-    g = "”",
-    h = "‘",
-    j = "’",
-    k = "【",
-    l = "】",
-    z = "。",
-    x = "？",
-    c = "！",
-    v = "——",
-    b = "%",
-    n = "《",
-    m = "》",
 }
 
 -- [LimitRepeated] 重复限制配置
@@ -289,38 +259,6 @@ function M.init(env)
     -- [LetterSelector] 字母选词状态位
     env.ls_active = false
 
-    -- [QuickSymbol] 符号快打
-    env.qs_trigger = "^([a-z])/$"
-    if config then
-        local ok, s = pcall(function()
-            return config:get_string("quick_symbol_text/trigger")
-        end)
-        if ok and type(s) == "string" and #s > 0 then
-            env.qs_trigger = s
-        end
-    end
-    env.qs_mapping = {}
-    for k, v in pairs(SYMBOL_DEFAULT) do
-        env.qs_mapping[k] = v
-    end
-    local ok_map, map = pcall(function()
-        return config:get_map("quick_symbol_text/symkey")
-    end)
-    if ok_map and map then
-        local ok_keys, keys = pcall(function()
-            return map:keys()
-        end)
-        if ok_keys and keys then
-            for _, key in ipairs(keys) do
-                local v = config:get_string("quick_symbol_text/symkey/" .. key)
-                if v then
-                    env.qs_mapping[tostring(key)] = v
-                end
-            end
-        end
-    end
-    env.qs_last_commit = "欢迎使用万象拼音！"
-
     -- [SelectCharacter] 以词定字
     env.sc_first_key = config:get_string("key_binder/select_first_character")
     env.sc_last_key = config:get_string("key_binder/select_last_character")
@@ -360,29 +298,6 @@ function M.init(env)
         env.kp_is_composing = ctx:is_composing()
         env.kp_has_menu = ctx:has_menu()
 
-        -- D. [QuickSymbol] 自动上屏逻辑
-        local qkey = string.match(input, env.qs_trigger)
-        if qkey then
-            local symbol = env.qs_mapping[qkey]
-            if symbol and symbol ~= "" then
-                if type(symbol) == "string" and symbol:lower() == "repeat" then
-                    if env.qs_last_commit ~= "" then
-                        engine:commit_text(env.qs_last_commit)
-                        ctx:clear()
-                    end
-                else
-                    engine:commit_text(symbol)
-                    ctx:clear()
-                end
-            end
-        end
-    end)
-    -- [3] 统一 Commit Notifier (记录上屏)
-    env.conn_commit = context.commit_notifier:connect(function(ctx)
-        local t = ctx:get_commit_text()
-        if t ~= "" then
-            env.qs_last_commit = t
-        end
     end)
 end
 
@@ -391,27 +306,10 @@ function M.fini(env)
         env.conn_update:disconnect()
         env.conn_update = nil
     end
-    if env.conn_commit then
-        env.conn_commit:disconnect()
-        env.conn_commit = nil
-    end
     env.memory = nil
 end
 
 -- 4. 逻辑分发处理 (Handlers)
-
--- [QuickSymbol] 拦截触发键，防止进入 Speller
-local function handle_quick_symbol_intercept(key, env, ctx)
-    local input = ctx.input or ""
-    local matched = string.match(input, env.qs_trigger)
-    if matched then
-        local k = matched
-        if env.qs_mapping[k] and env.qs_mapping[k] ~= "" then
-            return true -- Accepted
-        end
-    end
-    return false
-end
 
 -- [SuperSegmentation] 处理分词符 '
 local function handle_segmentation(key, env, ctx)
@@ -769,47 +667,42 @@ function M.func(key, env)
         end
     end
 
-    -- 2. QuickSymbol 拦截 (a-z + /)
-    if handle_quick_symbol_intercept(key, env, ctx) then
-        return K_ACCEPT
-    end
-
-    -- 3. Backspace 退格防止删除已上屏内容
+    -- 2. Backspace 退格防止删除已上屏内容
     if kc == 0xFF08 then
         if handle_backspace(key, env, ctx) then
             return K_ACCEPT
         end
     end
 
-    -- 4. Select Character 以词定字 (New!)
+    -- 3. Select Character 以词定字 (New!)
     -- 它的优先级很高，因为是针对当前候选的操作
     -- 但必须在 Backspace 之后，防止误操作
     if handle_select_character(key, env, ctx) then
         return K_ACCEPT
     end
 
-    -- 5. 分词符 ' [SuperSegmentation] 处理分词符 '
+    -- 4. 分词符 ' [SuperSegmentation] 处理分词符 '
     if kc == 0x27 then
         if handle_segmentation(key, env, ctx) then
             return K_ACCEPT
         end
     end
 
-    -- 6. 字母键 (a-z)[Limit Repeated] 重复输入限制
+    -- 5. 字母键 (a-z)[Limit Repeated] 重复输入限制
     if kc >= 0x61 and kc <= 0x7A then
         if handle_limit_repeat(key, env, ctx) then
             return K_ACCEPT
         end
     end
 
-    -- 7. (q-o + 特定 Tag)[Letter Selector] 字母选词
+    -- 6. (q-o + 特定 Tag)[Letter Selector] 字母选词
     if env.ls_active and (LETTER_SEL_MAP[kc] ~= nil) then
         if handle_letter_select(key, env, ctx) then
             return K_ACCEPT
         end
     end
 
-    -- 8. 数字键 (小键盘 + 选词)[KpNumber] 数字键综合逻辑
+    -- 7. 数字键 (小键盘 + 选词)[KpNumber] 数字键综合逻辑
     if (kc >= 0xFFB0 and kc <= 0xFFB9) or (kc >= 0x30 and kc <= 0x39) then
         if handle_number_logic(key, env, ctx) then
             return K_ACCEPT
