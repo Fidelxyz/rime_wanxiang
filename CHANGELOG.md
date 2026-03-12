@@ -1,5 +1,48 @@
 # Changelog
 
+## [14.9.1](https://github.com/Fidelxyz/rime_wanxiang/compare/v14.9.0...v14.9.1) (2026-03-12)
+
+
+### 🔥 性能优化
+
+* optimize aux_go.py for dictionary generation speed ([cd64bc8](https://github.com/Fidelxyz/rime_wanxiang/commit/cd64bc88655ba1616422ff61dc50d175c565f9d5))
+
+
+### 💅 重构
+
+* remove paired symbols feature ([55577ff](https://github.com/Fidelxyz/rime_wanxiang/commit/55577ffc7b9906859e584b68fb3cafa4bf20733e))
+* remove quick symbol input feature ([c0fc08e](https://github.com/Fidelxyz/rime_wanxiang/commit/c0fc08e1b770534935510382c18bf01a15e24144))
+* remove shijian, number translator, symbol input, calculator, statistics, and translation mode ([347a7d9](https://github.com/Fidelxyz/rime_wanxiang/commit/347a7d97a9d48fe84e7d1ae3c4f61955107d760c))
+* remove super_tips feature (tips database, processor, keybinding, config) ([f0b14e7](https://github.com/Fidelxyz/rime_wanxiang/commit/f0b14e7f22f2402c0d9394c21f77b96695ac32a7))
+* remove T9 schema and 14/18 key layout support ([34d7dff](https://github.com/Fidelxyz/rime_wanxiang/commit/34d7dffedf08fb25244c238ed75d91ad30cd8593))
+* remove tone input support (7890 keys, tone filtering, preedit tone display) ([55a3132](https://github.com/Fidelxyz/rime_wanxiang/commit/55a31324c29f2279b1b0a4e26ab7846339a54c14))
+
+
+### 📖 文档
+
+* add instructions for merging from upstream ([6c6ffe1](https://github.com/Fidelxyz/rime_wanxiang/commit/6c6ffe1fcef7772f36b48fed13baba730bf9354a))
+* init for agents ([183bdf6](https://github.com/Fidelxyz/rime_wanxiang/commit/183bdf6e081a3846832ad4f4d5d7c57a5eece432))
+* rewrite PATCH_GUIDE and update README ([42a788b](https://github.com/Fidelxyz/rime_wanxiang/commit/42a788b5cbd5c3d0c8b100c43229daa8d0389c25))
+* rewrite README to remove deleted features and simplify ([fbc5e45](https://github.com/Fidelxyz/rime_wanxiang/commit/fbc5e45ffc08665748b203a78974bcc99f8c6210))
+* simplify AGENTS.md ([4eb4dc2](https://github.com/Fidelxyz/rime_wanxiang/commit/4eb4dc2124e893c2cb3070ec76ae2cf8c996f4c4))
+* update README ([fb5d0e9](https://github.com/Fidelxyz/rime_wanxiang/commit/fb5d0e9f80d09e3184b2b3d2ac4f97e1aa1de83f))
+
+
+### 🏡 杂项
+
+* convert all CRLF and mixed line endings to LF ([c52402f](https://github.com/Fidelxyz/rime_wanxiang/commit/c52402f1da0897a7e3dc5741f05f44c6c821ae40))
+* reformat *.custom.yaml ([e29d768](https://github.com/Fidelxyz/rime_wanxiang/commit/e29d76801fd5f4d0c4dece4c5e20f7724a5469fe))
+* reformat lua and yaml files ([59e7676](https://github.com/Fidelxyz/rime_wanxiang/commit/59e76760a944eb14ec809d44616a2bb94dbb2e00))
+* **wanxiang:** release 14.9.0 ([19fa156](https://github.com/Fidelxyz/rime_wanxiang/commit/19fa156f5cce1a80f0392dda72437dce8af5222e))
+
+
+### 🤖 持续集成
+
+* cleanup build scripts and modify zip arguments to improve performance ([d57bac7](https://github.com/Fidelxyz/rime_wanxiang/commit/d57bac767d04ae7ec7b8a595cfbc1dc7163b0ef7))
+* exclude markdown and image files from release packages ([3b62209](https://github.com/Fidelxyz/rime_wanxiang/commit/3b62209ae4d08940125d610fbcde5ede8170cd8a))
+* remove workflow for building Android app and fix typo ([bf69a2d](https://github.com/Fidelxyz/rime_wanxiang/commit/bf69a2d21a202ee91c896697af746d62276533b1))
+* rename default branch from wanxiang to main ([d25ec3d](https://github.com/Fidelxyz/rime_wanxiang/commit/d25ec3d1374c36e1cec7e2d34ff7231f083be723))
+
 ## [14.9.0](https://github.com/amzxyz/rime_wanxiang/compare/v14.8.8...v14.9.0) (2026-03-02)
 
 
