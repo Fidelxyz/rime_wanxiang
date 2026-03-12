@@ -1,0 +1,185 @@
+patch:
+  speller/algebra:
+    __patch:
+      #- 模糊音                                  # 这里启用后，本文件末尾可配置具体条目
+      - wanxiang_algebra:/pro/自然码  # 可选输入方案名称：自然码, 自然龙, 小鹤双拼, 搜狗双拼, 微软双拼, 智能ABC, 紫光双拼, 国标双拼
+      - wanxiang_algebra:/pro/直接辅助  #辅助码升级为：直接辅助和间接辅助两种类型，都是句中任意，不同点在于直接辅助是nire=你  而间接则需要/引导  ni/re=你 ，在这个基础上直接辅助支持拼音后任意位置数字声调参与，间接辅助声调在/引导前参与
+      #- 自然码提权                               #本文件末尾，有自然码和小鹤的可以用
+    ##########################以上格式受指令初始化控制，最好保持格式不变，如果发生变更请不要使用指令修改相关数据#####################################
+    #通过下面的设置可以让你自己的文件引入而与仓库custom_phrase.txt不同，防止更新时被仓库文件覆盖
+    #custom_phrase/user_dict: custom_phrasexx    # 这里改成什么就需要手动创建同名的 custom_phrasexx.txt 文件在用户目录，这个文件主要用于置顶，编码为自定义编码的词汇
+    #translator/packs/+:
+    #- userxx                                  #导入根目录下名称为userxx.dict.yaml的自定义固定词典，编码要与固定词库一致，编码权重都不要少，形如姓名、专有名词公司名称等等
+    #下面是候选数量
+  menu/page_size: 6
+
+  super_comment:  # 超级注释模块，子项配置 true 开启，false 关闭
+    candidate_length: 2  # 候选词辅助码提醒的生效长度，0为关闭  但同时清空其它，应当使用上面开关来处理
+    corrector_type: "〔comment〕"  # 随意更换左右括号，比如"〔comment〕" 不加括号为无括号，comment占位不能动
+    chaifen: "〔chaifen〕"  # 随意更换左右括号，比如"〔chaifen〕" 不加括号为无括号，chaifen占位不能动
+    cand_type:
+      user_phrase: "⁺"
+      sentence: "∞"
+      phrase: ""
+      table: ""
+      user_table: ""
+      completion: ""
+      abbrev: ""
+      fallback: "~"
+
+  super_replacer:
+    db_name: lua/replacer
+    delimiter: "|"
+    comment_format: "〔%s〕"
+    chain: true  #true表示流水线作业，上一个option产出交给下一个处理，典型的s2t>t2hk=s2hk，false就是并行，直接用text转换
+    types:
+      # 场景1：输入 '哈哈' -> 变成 '1.哈哈 2.😄'
+      - option: emoji  # 开关名称与上面开关名称保持一致
+        mode: append  # 新增候选append 替换原候选replace 替换注释comment 简码模式abbrev匹配输入编码置顶词组
+        comment_mode: none  # 注释模式: "append"(原候选注释继承), "text"(原候选文本放在注释), "none"(空，默认)
+        tags: [abc]  # 生效的tag
+        prefix: "_em_"  # 前缀用于区分同一个数据库的不同用途数据
+        files:
+          - lua/data/emoji.txt
+      # 场景2：用于常驻的直接替换 option: true
+      - option: true
+        mode: append  # <--- 新增候选模式
+        comment_mode: none
+        tags: [abc]
+        prefix: "_ot_"
+        files:
+          - lua/data/others.txt
+      # 场景4：用于简繁转换的直接替换
+      - option: [s2t, s2hk, s2tw]  #后面依赖这条流水线有一个开关为true这条流水线就能工作
+        mode: replace  # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true  # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2t_"
+        files:
+          - lua/data/STCharacters.txt
+          - lua/data/STPhrases.txt
+      - option: s2hk
+        mode: replace  # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true  # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2hk_"
+        files:
+          - lua/data/HKVariants.txt
+      - option: s2tw
+        mode: replace  # <--- 替换原候选模式
+        comment_mode: append
+        sentence: true  # <--- 句子级别替换
+        tags: [abc]
+        prefix: "_s2tw_"
+        files:
+          - lua/data/TWVariants.txt
+      - option: [abbrev_lazy, abbrev_always]
+        mode: abbrev  # <--- 新增的简码模式
+        tags: [abc]
+        prefix: "_abbr_"
+        files:
+          - lua/data/abbrev.txt  # 格式：zm\t怎么|在吗
+  # 字符集过滤lua
+  # a,通用规范汉字表
+  # b,GB2312,
+  # g,GBK,
+  # T,Big5,(台港澳常用)
+  # j,简体,OpenCC (t2s)
+  # f,通用繁体,OpenCC (s2t)
+  # h,香港繁体, OpenCC (s2hk)
+  # t,台湾繁体, OpenCC (s2tw)
+  # u,基本区,U+4E00 - U+9FFF
+  # A-I,扩展 A-I 区,U+3400 及各扩展区 (支持到 Ext-I)
+  # c,兼容区汉字
+  # 你可以通过黑白名单微调你自己每个开关下面的字符集过滤清单，主数据库位于lua/charset.reverse.bin不可编辑
+  # 你可以按上面提到的规则代号在base处填写上基础集，还可以在每一个开关的开白名单设置微调数据，就像默认添加的字符集过滤在8105基础上新增了一些
+  # 你可以定义多个开关，多个开启状态的开关求并集，比如charset_filter开着，s2hk也开着，那么就会显示这两个集合的所有汉字
+  # 优雅的地方在于s2hk开着，charset_filter关着 我们照样能使用 港繁能用到的所有字，是真正的本体，无关字会被过滤，而当都开着则是享受简体转换成繁体的后的结果
+  # 这个设计真正的兼容了简繁转换与字符集过滤的矛盾，还能满足用户多种自定义需求，你可以在开关增加类别，并在charset下面新增option类去选择按照字区去过滤，等多种组合方式
+  charset:
+    - option: charset_filter
+      base: a  #可以填入多个类别如aj
+      addlist:
+        - "诶濛硷氽尛躝〇冇吔咗囧屌鲶芶咲畑垅𰻝𰻞"
+      blacklist: []
+    - option: s2t
+      base: f
+      addlist: []
+      blacklist: []
+    - option: s2hk
+      base: h
+      addlist: []
+      blacklist: []
+    - option: s2tw
+      base: t
+      addlist: []
+      blacklist: []
+
+  # 给 kp_number_processor 用的小键盘模式，能自动读取recognizer下面正则与之功能对齐
+  kp_number_mode: auto
+  #小键盘数字处理逻辑
+  #  "compose" : 小键盘数字始终不上屏参与编码
+  #  "auto"    : 输入中 push，空闲时 commit（默认）
+
+  #成语简码前置位置，只能设置在第一页，大于当前页数量则默认在最后一个，0代表关闭前置
+  idiom_preposition: 0
+  #下面用来改变你的windows小狼毫右下角软件图标
+  #schema/+:
+  #  icon: "icons/zhong.ico"
+  #  ascii_icon: "icons/ying.ico"
+  key_binder/sequence:  # Lua 配置：手动排序的快捷键 super_sequence.lua，不要用方向键，各种冲突，一定要避免冲突
+    up: "Control+j"  # 上移
+    down: "Control+k"  # 下移
+    reset: "Control+l"  # 重置
+    pin: "Control+p"  # 置顶
+
+  #开启自动无词频造词（默认已经开了）
+  #add_user_dict/enable_auto_phrase: true
+
+#下面的数据有需要的可以patch引用
+#特殊优化：部分音节字极少，几乎不参与构词，则提升对应四码字的优先级，仅对小鹤双拼有效，其他双拼方案需作对应修改）
+小鹤双拼提权:
+  __append:
+    - derive/^(.*?)(\d?);(bl|dx|df|eg|fn|kw|ny|tw|vw|yd|rx|fs|ix)$/$1$3/
+    - derive/^(.*?)(\d?);.*?,(bl|dx|df|eg|fn|kw|ny|tw|vw|yd|rx|fs|ix)$/$1$3/
+
+#特殊优化：部分音节字极少，几乎不参与构词，则提升对应四码字的优先级，仅对自然码有效，其他双拼方案需作对应修改）
+自然码提权:
+  __append:
+    - derive/^(.*?)(\d?);(jb|wq|aq|av|dn|xh|bv|jz|hm|sn|cd|iw|xl|ak|zy|fy|uz|yx|wb|wr|yw|dz|qz|ms|at|xf|gi|gn|or|ux|ww|nw|fs|qk|rl|cq|sw|jv|cy|sq|dd|fp|ae|ix|td|ep|ar|wm|pd|et|yz|eh|ct|os|hx|zq|ew|fm|ab|kc|tf|fx|we|sz|wx|bq|ic|ez|bs|ej|oh|ps|pw|fr|pq|au|wc|wp|dt|qf|zc|vx|im|br|mw|un|qb|fi|zm|vn|oz|kt|rq|ay|fn|yc|um|eq|eu|cz|yq|tq|oi|ek|az|fv|zx|ut|vz|ry|ac|ws|af|qv|ea|qj|al|ol|on|sx|ap|df|eg|rz|ey|em|ag|hi|iz|ki|xz|xj|ad|ft|pt|op|vt|oj|kn|pr|hq|eb|ev|cx|zd|am|ov|oq|ym|ef|ot|mr|rd|sy|oc|rc|oe|fq|cn|ok|rn|bp|yv|uc|wk|oy|bt|je|ow|xg|jj|rw|pp|ja|wt|lf|xe|wy|kx|sm|qe|fw|gc|xa|cw|zn|tn|cc|jo|md|sd|ql|kq|it|bd|sc|wv|fc|dw|ob|vm|ed|jl|xo|fl|gq|gt|of|pv|wd|qa|xk|yd|fe|og|iq|oa|uq|om|xv|mv|as|ox|km|zt|od|ht|el|hn|st|wn|mt|wi|tz|aj|yg|bw|jf|jg|kz|es|xb|ax|rt|gx|bb|qo|yf|ex|rx|tt|us|qg|pe|zw|mp|qh|rm|hc|np|jh|cm|yl|eo|ra|vc|aw|tw|fk|gm|ec|be|vq|fd|jk|in)$/$1$3/
+    - derive/^(.*?)(\d?);.*?,(jb|wq|aq|av|dn|xh|bv|jz|hm|sn|cd|iw|xl|ak|zy|fy|uz|yx|wb|wr|yw|dz|qz|ms|at|xf|gi|gn|or|ux|ww|nw|fs|qk|rl|cq|sw|jv|cy|sq|dd|fp|ae|ix|td|ep|ar|wm|pd|et|yz|eh|ct|os|hx|zq|ew|fm|ab|kc|tf|fx|we|sz|wx|bq|ic|ez|bs|ej|oh|ps|pw|fr|pq|au|wc|wp|dt|qf|zc|vx|im|br|mw|un|qb|fi|zm|vn|oz|kt|rq|ay|fn|yc|um|eq|eu|cz|yq|tq|oi|ek|az|fv|zx|ut|vz|ry|ac|ws|af|qv|ea|qj|al|ol|on|sx|ap|df|eg|rz|ey|em|ag|hi|iz|ki|xz|xj|ad|ft|pt|op|vt|oj|kn|pr|hq|eb|ev|cx|zd|am|ov|oq|ym|ef|ot|mr|rd|sy|oc|rc|oe|fq|cn|ok|rn|bp|yv|uc|wk|oy|bt|je|ow|xg|jj|rw|pp|ja|wt|lf|xe|wy|kx|sm|qe|fw|gc|xa|cw|zn|tn|cc|jo|md|sd|ql|kq|it|bd|sc|wv|fc|dw|ob|vm|ed|jl|xo|fl|gq|gt|of|pv|wd|qa|xk|yd|fe|og|iq|oa|uq|om|xv|mv|as|ox|km|zt|od|ht|el|hn|st|wn|mt|wi|tz|aj|yg|bw|jf|jg|kz|es|xb|ax|rt|gx|bb|qo|yf|ex|rx|tt|us|qg|pe|zw|mp|qh|rm|hc|np|jh|cm|yl|eo|ra|vc|aw|tw|fk|gm|ec|be|vq|fd|jk|in)$/$1$3/
+
+模糊音:
+  __append:
+    # n - l
+    - derive/^l/n
+    - derive/^n/l
+    # r - y     开头
+    - derive/^y/r
+    - derive/^r/y
+    # h - f     开头
+    - derive/^h/f
+    - derive/^f/h
+    # r - l     开头
+    - derive/^r/l
+    - derive/^l/r
+    # k - g     开头
+    - derive/^k/g
+    - derive/^g/k
+    # en - eng
+    - derive/(ē|é|ě|è|e)ng(.*)$/$1n$2
+    - derive/(ē|é|ě|è|e)n(.*)$/$1ng$2
+    # in - ing
+    - derive/(ī|í|ǐ|ì|i)ng(.*)$/$1n$2
+    - derive/(ī|í|ǐ|ì|i)n(.*)$/$1ng$2
+    # c - ch
+    - derive/^c([^h]*)/ch$1
+    - derive/^ch/c
+    # z - zh
+    - derive/^z([^h]*)/zh$1
+    - derive/^zh/z
+    # s - sh
+    - derive/^s([^h]*)/sh$1
+    - derive/^sh/s
