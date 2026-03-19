@@ -137,9 +137,6 @@ def load_aux_table(aux_file: Path) -> dict[str, list[str]]:
         字<TAB>;段1;段2;...
     （保留空段，不偏移；段内逗号原样保留）
     """
-    if not aux_file.is_file():
-        raise FileNotFoundError(f"aux 文件不存在：{aux_file}")
-
     print(f"加载辅助码表文件: {aux_file.name}")
 
     aux_map: dict[str, list[str]] = {}

@@ -21,19 +21,21 @@ jobs:
 
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
-      release_tag_name: ${{ steps.release.outputs.tag_name }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
 
   build:
     needs: [release-please]
     if: needs.release-please.outputs.release_created == 'true'
     uses: ./.github/workflows/build.yml
+    with:
+      tag_name: ${{ needs.release-please.outputs.tag_name }}
 
   release:
     runs-on: ubuntu-22.04
-    needs: [build]
+    needs: [release-please, build]
     if: needs.release-please.outputs.release_created == 'true'
     env:
-      TAG_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
+      TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
 
     steps:
       - uses: actions/checkout@v6
@@ -44,19 +46,16 @@ jobs:
           path: artifact
 
       - name: Generate release note
-        run: bash scripts/generate-release-note.sh
+        id: release-note
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/generate-release-note.sh > release-note.md
 
-      - uses: softprops/action-gh-release@v2
+      - uses: ncipollo/release-action@v1
         with:
-          files: artifact/rime-wanxiang-*.zip
-          tag_name: ${{ env.TAG_VERSION }}
-          name: "${{ env.TAG_VERSION }} Rime万象拼音输入方案"
-          body_path: release_notes.md
+          tag: ${{ env.TAG_NAME }}
+          name: "${{ env.TAG_NAME }} Rime万象拼音输入方案"
+          bodyFile: release-note.md
+          artifacts: artifact/rime-wanxiang-*.zip
           draft: false
-          prerelease: false
-          make_latest: true
-
-  release-branches:
-    needs: [build]
-    if: needs.release-please.outputs.release_created == 'true'
-    uses: ./.github/workflows/release-branches.yml
+          allowUpdates: true

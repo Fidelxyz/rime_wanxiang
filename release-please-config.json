@@ -3,6 +3,7 @@
     "packages": {
         ".": {
             "release-type": "simple",
+            "draft": true,
             "extra-files": [
                 "lua/wanxiang/wanxiang.lua"
             ],

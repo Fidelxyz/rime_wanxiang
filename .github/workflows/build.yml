@@ -3,6 +3,9 @@ name: Build
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      tag_name:
+        type: string
 
 jobs:
   build:
@@ -23,3 +26,45 @@ jobs:
           name: rime-wanxiang-dist-${{ github.ref_name }}
           if-no-files-found: error
           path: dist/rime-wanxiang-*.zip
+
+      - name: Commit and force push per-scheme branches
+        if: ${{ inputs.tag_name != '' }}
+        env:
+          TAG_NAME: ${{ inputs.tag_name }}
+        run: |-
+          set -euxo pipefail
+
+          schemes=("base" "shouyou-fuzhu" "zrm-fuzhu" "tiger-fuzhu" "moqi-fuzhu" "flypy-fuzhu" "wubi-fuzhu" "hanxin-fuzhu")
+
+          for scheme in "${schemes[@]}"; do
+            branch="wanxiang-${scheme}"
+            src_dir="dist/rime-wanxiang-${scheme}"
+
+            echo "=== Building branch ${branch} from ${src_dir} ==="
+
+            if [ ! -d "${src_dir}" ]; then
+              echo "Warning: ${src_dir} not found, skip ${branch}."
+              continue
+            fi
+
+            git worktree add --orphan "${branch}"
+
+            # Copy the built files from dist/ to the branch
+            cp -a "${src_dir}/." "${branch}/"
+
+            (
+              cd "${branch}"
+
+              # Generate Plum recipes
+              bash ../scripts/generate-plum-recipes.sh "${scheme}" "${branch}"
+
+              git add .
+              git status
+
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+              git commit -m "chore(${branch}): release for ${TAG_NAME}"
+              git push -f origin "${branch}"
+            )
+          done

@@ -1,28 +1,28 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-SCRIPT_DIR="$(dirname "$(realpath "$0")")"
-ROOT_DIR="$SCRIPT_DIR/.."
-DIST_DIR="$ROOT_DIR/dist"
-CUSTOM_DIR="$ROOT_DIR/custom"
+script_dir="$(dirname "$(realpath "$0")")"
+root_dir="${script_dir}/.."
+dist_dir="${root_dir}/dist"
+custom_dir="${root_dir}/custom"
 
-EXCLUDE_DICT_FILES=(
+exclude_dict_files=(
     "wuzhong.dict.yaml"
     "renming.dict.yaml"
     "wuzhong.pro.dict.yaml"
     "renming.pro.dict.yaml"
 )
 
-SCHEMA_LIST=("base" "flypy" "hanxin" "moqi" "tiger" "wubi" "zrm" "shouyou")
+schema_list=("base" "flypy" "hanxin" "moqi" "tiger" "wubi" "zrm" "shouyou")
 
 package_schema_base() {
-    OUT_DIR=$1
+    out_dir=$1
 
-    rm -rf "$OUT_DIR"
-    mkdir -p "$OUT_DIR"
+    rm -rf "${out_dir}"
+    mkdir -p "${out_dir}"
 
     # 1) custom/：仅拷贝 yaml，排除指定文件（保留目录结构）
-    mkdir -p "$OUT_DIR/custom"
+    mkdir -p "${out_dir}/custom"
     rsync -av --prune-empty-dirs \
         --include='*/' \
         --exclude='wanxiang_chaifen_*.dict.yaml' \
@@ -32,10 +32,10 @@ package_schema_base() {
         --exclude='wanxiang_pro.schema.yaml' \
         --include='*.yaml' \
         --exclude='*' \
-        "$CUSTOM_DIR/" "$OUT_DIR/custom/"
+        "${custom_dir}/" "${out_dir}/custom/"
 
-    # 2) 根目录 → $OUT_DIR（不排 dicts/），排除若干
-    OUT_BASE="$(basename "$OUT_DIR")"
+    # 2) 根目录 → ${out_dir}（不排 dicts/），排除若干
+    OUT_BASE="$(basename "${out_dir}")"
     rsync -av --ignore-existing \
         --exclude='.*' \
         --exclude='/custom' \
@@ -46,44 +46,44 @@ package_schema_base() {
         --include='CHANGELOG.md' \
         --exclude='*.md' \
         --exclude="/$OUT_BASE" \
-        "$ROOT_DIR/" "$OUT_DIR/"
+        "${root_dir}/" "${out_dir}/"
 }
 
 package_schema_pro() {
-    SCHEMA_NAME="$1"
-    OUT_DIR="$2"
+    schema_name="$1"
+    out_dir="$2"
 
-    rm -rf "$OUT_DIR"
-    mkdir -p "$OUT_DIR"
+    rm -rf "${out_dir}"
+    mkdir -p "${out_dir}"
 
     # 1) 移动分包后的 dicts
-    if [[ -d "$DIST_DIR/pro-$SCHEMA_NAME-fuzhu-dicts" ]]; then
-        mv "$DIST_DIR/pro-$SCHEMA_NAME-fuzhu-dicts" "$OUT_DIR/dicts"
+    if [[ -d "$dist_dir/pro-${schema_name}-fuzhu-dicts" ]]; then
+        mv "$dist_dir/pro-${schema_name}-fuzhu-dicts" "${out_dir}/dicts"
     fi
     # 1.1) 补充必要的附加文件
-    for f in "en.dict.yaml" "cn&en.dict.yaml" "chengyu.txt" "people.dict.yaml"; do
-        if [[ -f "$ROOT_DIR/dicts/$f" ]]; then
-            cp "$ROOT_DIR/dicts/$f" "$OUT_DIR/dicts/"
+    for file in "en.dict.yaml" "cn&en.dict.yaml" "chengyu.txt" "people.dict.yaml"; do
+        if [[ -f "${root_dir}/dicts/${file}" ]]; then
+            cp "${root_dir}/dicts/${file}" "${out_dir}/dicts/"
         fi
     done
 
     # 2) 复制拆分表并重命名，同时拷贝 schema
-    src="$ROOT_DIR/custom/wanxiang_chaifen_${SCHEMA_NAME}.dict.yaml"
-    dst="$OUT_DIR/wanxiang_chaifen.dict.yaml"
+    src="${root_dir}/custom/wanxiang_chaifen_${schema_name}.dict.yaml"
+    dst="${out_dir}/wanxiang_chaifen.dict.yaml"
     [[ -f "$src" ]] && cp "$src" "$dst"
 
-    for f in \
+    for file in \
         wanxiang_pro.dict.yaml \
         wanxiang_pro.schema.yaml \
         wanxiang_chaifen.schema.yaml
     do
-        src="$ROOT_DIR/custom/$f"
-        dst="$OUT_DIR/$f"
+        src="${root_dir}/custom/${file}"
+        dst="${out_dir}/${file}"
         [[ -f "$src" ]] && cp "$src" "$dst"
     done
 
     # 3) custom/：仅拷贝 yaml，排除若干（保留目录结构）
-    mkdir -p "$OUT_DIR/custom"
+    mkdir -p "${out_dir}/custom"
     rsync -av --prune-empty-dirs \
         --include='*/' \
         --exclude='wanxiang.custom*' \
@@ -93,10 +93,10 @@ package_schema_pro() {
         --exclude='wanxiang_pro.schema.yaml' \
         --include='*.yaml' \
         --exclude='*' \
-        "$ROOT_DIR/custom/" "$OUT_DIR/custom/"
+        "${root_dir}/custom/" "${out_dir}/custom/"
 
-    # 4) 根目录 → $OUT_DIR（排除若干）
-    OUT_BASE="$(basename "$OUT_DIR")"
+    # 4) 根目录 → ${out_dir}（排除若干）
+    OUT_BASE="$(basename "${out_dir}")"
     rsync -av --ignore-existing \
         --exclude='.*' \
         --exclude='/custom' \
@@ -110,56 +110,45 @@ package_schema_pro() {
         --exclude='wanxiang.dict.yaml' \
         --exclude='wanxiang.schema.yaml' \
         --exclude="/$OUT_BASE" \
-        "$ROOT_DIR/" "$OUT_DIR/"
+        "${root_dir}/" "${out_dir}/"
 
     # 5) default.yaml: - schema: wanxiang -> - schema: wanxiang_pro
-    sed -i -E 's/^([[:space:]]*)-\s*schema:\s*wanxiang\s*$/\1- schema: wanxiang_pro/' "$OUT_DIR/default.yaml"
+    sed -i -E 's/^([[:space:]]*)-\s*schema:\s*wanxiang\s*$/\1- schema: wanxiang_pro/' "${out_dir}/default.yaml"
 }
 
 package_schema() {
-    SCHEMA_NAME="$1"
+    schema_name="$1"
     echo
-    echo "=== 开始打包方案：$SCHEMA_NAME"
+    echo "=== 开始打包方案：${schema_name}"
 
-    if [[ "$SCHEMA_NAME" == "base" ]]; then
-        OUT_DIR="$DIST_DIR/rime-wanxiang-base"
-        package_schema_base "$OUT_DIR"
-        ZIP_NAME="rime-wanxiang-$SCHEMA_NAME.zip"
+    if [[ "${schema_name}" == "base" ]]; then
+        out_dir="$dist_dir/rime-wanxiang-base"
+        package_schema_base "${out_dir}"
+        zip_name="rime-wanxiang-${schema_name}.zip"
     else
-        OUT_DIR="$DIST_DIR/rime-wanxiang-$SCHEMA_NAME-fuzhu"
-        package_schema_pro "$SCHEMA_NAME" "$OUT_DIR"
+        out_dir="$dist_dir/rime-wanxiang-${schema_name}-fuzhu"
+        package_schema_pro "${schema_name}" "${out_dir}"
     fi
 
-    ZIP_NAME="$(basename $OUT_DIR).zip"
+    zip_name="$(basename "${out_dir}").zip"
     # 构建 zip 的排除列表格式：-x "dicts/file1" "dicts/file2" ...
-    ZIP_EXCLUDE_ARGS=()
-    for file in "${EXCLUDE_DICT_FILES[@]}"; do
-        ZIP_EXCLUDE_ARGS+=("dicts/$file")
+    zip_exclude_args=()
+    for file in "${exclude_dict_files[@]}"; do
+        zip_exclude_args+=("dicts/${file}")
     done
-    # 使用 -x 排除文件，文件物理上仍留在 $OUT_DIR 中
-    (cd "$OUT_DIR" && zip -r -q "../$ZIP_NAME" . -x "${ZIP_EXCLUDE_ARGS[@]}" && cd ..)
-    echo "=== 完成打包: $ZIP_NAME"
+    # 使用 -x 排除文件，文件物理上仍留在 ${out_dir} 中
+    (cd "${out_dir}" && zip -r -q "../${zip_name}" . -x "${zip_exclude_args[@]}" && cd ..)
+    echo "=== 完成打包: ${zip_name}"
 }
 
 
-rm -rf "$DIST_DIR"
-mkdir -p "$DIST_DIR"
+rm -rf "$dist_dir"
+mkdir -p "$dist_dir"
 
 echo "=== PRO 分包开始"
-python3 "$SCRIPT_DIR/split_aux.py"
+python3 "${script_dir}/split_aux.py"
 echo "=== PRO 分包完毕"
 
-# 如果没有传入参数，则打包所有 schema
-if [[ -z "$SCHEMA_NAME" ]]; then
-    for name in "${SCHEMA_LIST[@]}"; do
-        package_schema "$name"
-    done
-    exit 0
-fi
-
-if [[ ! " ${SCHEMA_LIST[*]} " =~ ${SCHEMA_NAME} ]]; then
-    echo "参数错误: 仅支持以下 schema：${SCHEMA_LIST[*]}" >&2
-    exit 1
-fi
-
-package_schema "$SCHEMA_NAME"
+for schema in "${schema_list[@]}"; do
+    package_schema "${schema}"
+done
