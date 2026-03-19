@@ -419,7 +419,7 @@ punctuator/digit_separators: ","  →  punctuator/digit_separators: commit
 
 **错音错字提示**：如输入 `gei yu 给予`，会提示正确读音 `jǐ yǔ`，全拼双拼均支持。
 
-**短语格式化 Lua**：将 `custom_phrase.txt` 中的 `\n`、`\s`、`\t` 等转换为实际的换行、空格、制表符，支持动态变量（时间、日期等）。
+**短语格式化 Lua**：将 `custom_phrase.txt` 中的 `\n`、`\s`、`\t` 等转换为实际的换行、空格、制表符。
 
 **输入模式切换 Lua**：使用 Shift+Space 在中文、英文、混合候选词之间切换。
 

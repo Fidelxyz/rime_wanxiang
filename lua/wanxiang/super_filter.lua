@@ -10,8 +10,8 @@
 --      因此在首选已经是英文的时候，且type=completion且大于等于4个字符，这个时候后面如果有type=sentence的派生词则直接干掉，这个还要依赖，表翻译器
 --      权重设置与主翻译器不可相差太大
 
-local wanxiang = require("wanxiang/wanxiang")
 local M = {}
+
 --全局通信通道
 _G.WanxiangSharedState = _G.WanxiangSharedState
     or {
@@ -51,7 +51,7 @@ local function has_english_token_fast(s)
     end
     return false
 end
--- 1. 内部常量与工具函数
+
 local escape_map = {
     ["\\n"] = "\n", -- 换行
     ["\\r"] = "\r", -- 回车
@@ -60,144 +60,7 @@ local escape_map = {
     ["\\z"] = "\226\128\139", -- 零宽空格
 }
 
-local utf8_char_pattern = "[%z\1-\127\194-\244][\128-\191]*"
-
--- 时辰数据：每个时辰2小时，共8刻，每刻15分钟
-local shichen_data = {
-    { name = "子时", start_hour = 23, end_hour = 1 },
-    { name = "丑时", start_hour = 1, end_hour = 3 },
-    { name = "寅时", start_hour = 3, end_hour = 5 },
-    { name = "卯时", start_hour = 5, end_hour = 7 },
-    { name = "辰时", start_hour = 7, end_hour = 9 },
-    { name = "巳时", start_hour = 9, end_hour = 11 },
-    { name = "午时", start_hour = 11, end_hour = 13 },
-    { name = "未时", start_hour = 13, end_hour = 15 },
-    { name = "申时", start_hour = 15, end_hour = 17 },
-    { name = "酉时", start_hour = 17, end_hour = 19 },
-    { name = "戌时", start_hour = 19, end_hour = 21 },
-    { name = "亥时", start_hour = 21, end_hour = 23 },
-}
-
--- 刻数名称：每个时辰有8刻
-local ke_names = { "初刻", "二刻", "三刻", "四刻", "五刻", "六刻", "七刻", "八刻" }
-
--- 获取时辰和刻数
-local function get_shichen_and_ke(hour, min)
-    local total_minutes = hour * 60 + min
-
-    for _, shichen in ipairs(shichen_data) do
-        local shichen_name = shichen.name
-        local start_hour = shichen.start_hour
-        local end_hour = shichen.end_hour
-
-        local start_minutes = start_hour * 60
-        local end_minutes = end_hour * 60
-        local is_match = false
-
-        -- 处理跨天的子时
-        if start_hour > end_hour then
-            if total_minutes >= start_minutes or total_minutes < end_minutes then
-                is_match = true
-            end
-        else
-            if total_minutes >= start_minutes and total_minutes < end_minutes then
-                is_match = true
-            end
-        end
-
-        if is_match then
-            local calc_minutes = total_minutes
-            if start_hour > end_hour and total_minutes < end_minutes then
-                calc_minutes = total_minutes + 1440
-            end
-
-            local offset_minutes = calc_minutes - start_minutes
-            local ke_index = math.floor(offset_minutes / 15)
-            if ke_index >= 8 then
-                ke_index = 7
-            end
-
-            return shichen_name, ke_names[ke_index + 1]
-        end
-    end
-
-    return "未知时辰", "未知刻"
-end
-local time_tokens_pattern = "\\[AGHIKMNOPSTWYdjlmopwy]"
--- 2. 核心：处理动态时间（只负责替换，不负责保护）
-local function process_datetime_internal(s)
-    if not string.find(s, time_tokens_pattern) then
-        return s
-    end
-    local dt = os.date("*t")
-
-    -- 获取时辰和刻数
-    local current_shichen, current_ke = get_shichen_and_ke(dt.hour, dt.min)
-
-    local week_table_big = { "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六" }
-    local week_table_small = { "周日", "周一", "周二", "周三", "周四", "周五", "周六" }
-
-    local h12 = dt.hour % 12
-    if h12 == 0 then
-        h12 = 12
-    end
-    local ampm = (dt.hour < 12) and "am" or "pm"
-    local raw_tz = os.date("%z") or "+0800"
-    local tz_colon
-    do
-        local sign, h_str, m_str = raw_tz:match("^([%+%-])(%d%d)(%d%d)$")
-        if sign then
-            tz_colon = sign .. h_str .. ":" .. m_str
-        else
-            tz_colon = raw_tz
-        end
-    end
-
-    -- 计算中文时段 A
-    local zh_period
-    local h = dt.hour
-    if h < 6 then
-        zh_period = "凌晨"
-    elseif h < 12 then
-        zh_period = "上午"
-    elseif h < 13 then
-        zh_period = "中午"
-    elseif h < 18 then
-        zh_period = "下午"
-    else
-        zh_period = "晚上"
-    end
-
-    local time_map = {
-        Y = string.format("%04d", dt.year),
-        y = string.format("%02d", dt.year % 100),
-        m = string.format("%02d", dt.month),
-        d = string.format("%02d", dt.day),
-        N = tostring(dt.month), -- 月份不带零（用\N避开\n换行冲突）
-        j = tostring(dt.day),
-        W = week_table_big[dt.wday],
-        w = week_table_small[dt.wday],
-        H = string.format("%02d", dt.hour),
-        G = tostring(dt.hour),
-        I = string.format("%02d", h12),
-        l = tostring(h12),
-        T = current_shichen,
-        K = current_ke,
-        M = string.format("%02d", dt.min),
-        S = string.format("%02d", dt.sec),
-        p = ampm,
-        P = ampm:upper(),
-        O = tz_colon,
-        o = raw_tz,
-        A = zh_period,
-    }
-
-    return s:gsub("\\(%a)", function(char)
-        return time_map[char] or ("\\" .. char)
-    end)
-end
-
--- 3. 主入口：全局保护 [[]] 并执行所有转义逻辑
+-- 主入口：全局保护 [[]] 并执行所有转义逻辑
 local function apply_escape_fast(text)
     -- 性能护航：不含反斜杠直接返回
     if not text or not string.find(text, "\\", 1, true) then
@@ -214,18 +77,6 @@ local function apply_escape_fast(text)
     -- 第二步：处理基础转义 (\n, \t, \s, \z 等)
     s = s:gsub("\\[ntrsz]", escape_map)
 
-    -- 第三步：处理字符重复 (a\3 => aaa)
-    s = s:gsub("(" .. utf8_char_pattern .. ")\\(%d+)", function(char, count)
-        local n = tonumber(count)
-        if n and n > 0 and n < 200 then
-            return string.rep(char, n)
-        end
-        return char .. "\\" .. count
-    end)
-
-    -- 第四步：处理动态时间占位符 (\Y, \T, \A 等)
-    s = process_datetime_internal(s)
-
     -- 第五步：还原 [[...]]
     s = s:gsub("\0BLK(%d+)\0", function(i)
         return blocks[tonumber(i)] or ""
@@ -233,6 +84,7 @@ local function apply_escape_fast(text)
 
     return s, s ~= text
 end
+
 local function format_and_autocap(cand)
     local text = cand.text
     if not text or text == "" then
