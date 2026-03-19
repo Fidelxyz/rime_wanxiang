@@ -378,57 +378,6 @@ function SV.update_preedit(env, preedit)
         env._sv_last_pre = preedit
     end
 end
--- 对 cand.preedit 应用转换：隐藏双大写辅助码
-local function apply_aux_preedit(env, cand)
-    if not cand or not cand.preedit or cand.preedit == "" then
-        return
-    end
-
-    local engine = env.engine
-    local ctx = engine and engine.context
-    local input = ctx and ctx.input or ""
-
-    -- 1. 基础拦截：如果输入包含连续数字（如小键盘），或者首选就是英文，不转换
-    if input:match("%d%d") then
-        return
-    end
-
-    -- 判断首选是否为纯英文（通过匹配是否全由英文字符组成且不含中文）
-    if cand.text:match("^[%a%p%s]+$") then
-        return
-    end
-
-    -- 2. 加载配置
-    local cfg = engine and engine.schema and engine.schema.config
-    local aux_symbol = cfg and cfg:get_string("force_upper_aux/symbol")
-
-    -- 如果没配置 symbol，直接跳过大写转换逻辑
-    if not aux_symbol or aux_symbol == "" then
-        return
-    end
-
-    do
-        local preedit = cand.preedit
-        -- 3. 核心逻辑：排除前两位是大写的情况，只转换后续出现的双大写
-        -- ([A-Z][A-Z]+) 匹配后续连续的两个及以上的大写字母。
-        local converted = preedit:gsub("^(..?-?)([A-Z][A-Z]+)", function(prefix, upper)
-            -- 检查前缀是否包含大写字母。如果前缀里有大写，说明可能是英文输入，不转换。
-            if prefix:match("[A-Z]") then
-                return prefix .. upper
-            else
-                return prefix .. aux_symbol
-            end
-        end)
-
-        -- 处理非行首（音节中间或靠后）的双大写
-        -- 比如 "nihaoWS" -> "nihao·"
-        converted = converted:gsub("([^%s%^])([A-Z][A-Z]+)", function(prev, _)
-            return prev .. aux_symbol
-        end)
-
-        cand.preedit = converted
-    end
-end
 
 -- ----------------------
 -- 主函数：根据优先级处理候选词的注释和preedit
@@ -501,7 +450,7 @@ function ZH.func(input, env)
             yield(genuine_cand)
             goto continue
         end
-        apply_aux_preedit(env, genuine_cand)
+
         -- 进入注释处理阶段
         -- ① 辅助码注释或者声调注释
         if is_comment_hint then

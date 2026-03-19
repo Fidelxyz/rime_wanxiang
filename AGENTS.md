@@ -9,7 +9,7 @@ collection of YAML configuration files, Lua extensions, and dictionary data for 
 ### Directory Structure
 
 ```
-├── lua/wanxiang/          # 17 Lua plugin modules (core logic)
+├── lua/wanxiang/          # 15 Lua plugin modules (core logic)
 ├── lua/data/              # Data files for Lua plugins (emoji, charset, OpenCC)
 ├── dicts/                 # Dictionary data files (.dict.yaml)
 ├── custom/                # Custom configuration templates, pro schema variants

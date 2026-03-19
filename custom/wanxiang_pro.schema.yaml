@@ -47,7 +47,6 @@ switches:
 # 输入引擎
 engine:
   processors:
-    - lua_processor@*wanxiang.force_upper_aux  #自动将N-1首选数量的汉字大写辅助码施加到音节后面起到固定语句分词的作用
     - lua_processor@*wanxiang.super_processor  #KP小键盘、字母选词、符号快打、超强分词、重复限制、退格限制、以词定字
     - lua_processor@*wanxiang.partial_commit  #通过ctrl+1~0局部提交10个字以内的句子的前几个字（一般为正确的前几个）使用时要遵循合理的分词结构能促进后续编码打出正确的词汇
     - lua_processor@*wanxiang.super_sequence*P  #手动排序，高亮候选 ctrl+j左移动 ctrl+k 右移动 ctrl+l 移除位移  ctrl+p 置顶
@@ -123,10 +122,6 @@ super_processor:
   # 下面这些写法都支持：
   # select_character: "[,]"                      # [ 上屏首字，] 上屏尾字（推荐）
   # select_character: "bracketleft, bracketright"  # [ 上屏首字，] 上屏尾字（英文全拼）
-
-force_upper_aux:
-  hotkey: "period"  #用来固定候选的快捷键，原理是用双大写字母定字,能用组合键能用符号Tab等，按一下固定当前可见候选，按两下固定N-1个字状态下记录的字
-  symbol: "›"  #用来替代双大写字母辅助的preedit视觉拉长的问题
 
 # 给 kp_number_processor 用的小键盘模式，能自动读取recognizer下面正则与之功能对齐
 kp_number_mode: auto
