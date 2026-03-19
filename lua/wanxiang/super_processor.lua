@@ -407,7 +407,7 @@ end
 -- 4. 逻辑分发处理
 
 -- [Predict Space] 联想空格接力起跑点
-local function handle_predict_space(key, env, ctx)
+local function handle_predict_space(env, ctx)
     if not env.enable_predict_space then
         return false
     end
@@ -451,7 +451,7 @@ local function handle_segmentation(key, env, ctx)
     -- 大于 10 码动态构建分词：在2、3码之间循环
     if N > 10 then
         local groups_2 = {}
-        for i = 1, math.floor(N / 2) do
+        for _ = 1, math.floor(N / 2) do
             table.insert(groups_2, 2)
         end
         if N % 2 ~= 0 then
@@ -459,7 +459,7 @@ local function handle_segmentation(key, env, ctx)
         end
 
         local groups_3 = {}
-        for i = 1, math.floor(N / 3) do
+        for _ = 1, math.floor(N / 3) do
             table.insert(groups_3, 3)
         end
         if N % 3 ~= 0 then
@@ -785,7 +785,7 @@ function M.func(key, env)
 
     -- [Predict Space] 联想空格
     if kc == 0x20 then
-        if handle_predict_space(key, env, ctx) then
+        if handle_predict_space(env, ctx) then
             return K_ACCEPT
         end
     end

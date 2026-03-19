@@ -20,22 +20,7 @@ local upper = string.upper
 local lower = string.lower
 local sub = string.sub
 local match = string.match
-local format = string.format
 local STICKY_BUFFER_SIZE = 2
-
-local function fast_type(c)
-    local t = c.type
-    if t then
-        return t
-    end
-    local g = c.get_genuine and c:get_genuine() or nil
-    return (g and g.type) or ""
-end
-
-local function is_table_type(c)
-    local t = fast_type(c)
-    return t == "user_table" or t == "fixed"
-end
 
 local function get_now()
     if rime_api and rime_api.get_time_ms then
@@ -575,8 +560,6 @@ function F.func(input, env)
             return
         end
 
-        local yielded_derived = false
-
         -- 只有在 wanxiang_english 方案下，才进行英文的回溯派生逻辑
         if env.schema_id == "wanxiang_english" and has_letters(curr_input) then
             local anchor = nil
@@ -606,7 +589,6 @@ function F.func(input, env)
                     cand.preedit = output_preedit
                     cand.quality = 999
                     yield(cand)
-                    yielded_derived = true
                 elseif is_ascii_phrase_fast(anchor.text) then
                     -- 纯英文模式（含逗号等）
                     local has_spacing = find(anchor.text, " ")
@@ -618,14 +600,10 @@ function F.func(input, env)
                     end
 
                     local output_text = ""
-                    local output_preedit = ""
-
                     if has_spacing or last_len > 3 then
                         output_text = anchor.text .. spacer .. diff
-                        output_preedit = anchor.text .. spacer .. diff
                     else
                         output_text = curr_input
-                        output_preedit = curr_input
                     end
 
                     output_text = apply_segment_formatting(output_text, curr_input)
@@ -633,7 +611,6 @@ function F.func(input, env)
                     cand.preedit = output_text
                     cand.quality = 999
                     yield(cand)
-                    yielded_derived = true
                 end
             end
         end

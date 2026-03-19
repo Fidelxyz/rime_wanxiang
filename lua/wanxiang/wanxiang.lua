@@ -1,12 +1,8 @@
----@diagnostic disable: undefined-global
-
 -- 万象的一些共用工具函数
 local wanxiang = {}
 
 -- x-release-please-start-version
-
 wanxiang.version = "v15.2.0"
-
 -- x-release-please-end
 
 -- 全局内容
@@ -147,9 +143,8 @@ function wanxiang.IsChineseCharacter(text)
         or (codepoint >= 0x2F00 and codepoint <= 0x2FDF) -- Kangxi Radicals
 end
 
----按照优先顺序获取文件：用户目录 > 系统目录
----@param filename string 相对路径
----@retur string | nil
+---@param path string
+---@return boolean
 -- 辅助函数：检测路径是否为绝对路径（以 / 或盘符开头）
 local function is_absolute_path(path)
     if not path then
@@ -164,6 +159,7 @@ local function is_absolute_path(path)
     return false
 end
 
+---按照优先顺序获取文件：用户目录 > 系统目录
 function wanxiang.get_filename_with_fallback(filename)
     local _path = filename:gsub("^[\\/]+", "")
     local user_dir = rime_api.get_user_data_dir()
@@ -191,7 +187,7 @@ end
 
 -- 按照优先顺序加载文件：用户目录 > 系统目录
 ---@param filename string 相对路径
----@retur file* | nil, function
+---@return file* | nil, function, string | nil
 function wanxiang.load_file_with_fallback(filename, mode)
     mode = mode or "r" -- 默认读取模式
 
@@ -214,6 +210,7 @@ function wanxiang.load_file_with_fallback(filename, mode)
 end
 
 local USER_ID_DEFAULT = "unknown"
+
 ---作为「小狼毫」和「仓」 `rime_api.get_user_id()` 的一个 workaround
 ---详见：
 ---1. https://github.com/rime/weasel/pull/1649
@@ -243,6 +240,7 @@ function wanxiang.get_user_id()
     installation_file:close()
     return user_id
 end
+
 wanxiang.INPUT_METHOD_MARKERS = {
     ["Ⅰ"] = "pinyin", --全拼
     ["Ⅱ"] = "zrm", --自然码双拼
@@ -604,4 +602,5 @@ function wanxiang.load_regex_patterns(config, path)
     end
     return patterns
 end
+
 return wanxiang

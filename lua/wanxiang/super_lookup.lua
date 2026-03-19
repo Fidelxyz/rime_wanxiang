@@ -9,6 +9,7 @@
 local function alt_lua_punc(s)
     return s and s:gsub("([%.%+%-%*%?%[%]%^%$%(%)%%])", "%%%1") or ""
 end
+
 -- 高性能 UTF8 长度获取
 local function get_utf8_len(s)
     if utf8 and utf8.len then
@@ -247,18 +248,6 @@ local function match_fuzzy_recursive(codes_sequence, idx, input_str, input_idx, 
     return result
 end
 
-local function list_contains(list, target)
-    if not list then
-        return false
-    end
-    for _, v in ipairs(list) do
-        if v == target then
-            return true
-        end
-    end
-    return false
-end
-
 -- 解析输入中的反查分隔点。
 -- 兼容动态获取的造词前缀：如果输入以 bypass_prefix 开头，则跳过它，只把后续反查引导符当作筛选分隔点。
 local function split_lookup_input(input, key, bypass_prefix)
@@ -413,7 +402,7 @@ function f.init(env)
 
     env.notifier = env.engine.context.select_notifier:connect(function(ctx)
         local input = ctx.input
-        local code, fuma = split_lookup_input(input, env.search_key_str, env.bypass_prefix)
+        local code, _ = split_lookup_input(input, env.search_key_str, env.bypass_prefix)
         if not code or #code == 0 then
             return
         end
@@ -455,7 +444,7 @@ function f.func(input, env)
 
     local ctx_input = env.engine.context.input
     -- 传入 env.bypass_prefix
-    local _, fuma, s_start, s_end = split_lookup_input(ctx_input, env.search_key_str, env.bypass_prefix)
+    local _, fuma, s_start, _ = split_lookup_input(ctx_input, env.search_key_str, env.bypass_prefix)
     if not s_start then
         for cand in input:iter() do
             yield(cand)
@@ -478,7 +467,6 @@ function f.func(input, env)
     end
     local long_word_cands = {}
     local max_len = 0
-    local has_any_match = false
 
     if env.cache_size > 2000 then
         env._global_db_cache = {}
@@ -595,7 +583,6 @@ function f.func(input, env)
         end
 
         if matched_idx then
-            has_any_match = true
             if if_single_char_first and cand_len > 1 then
                 table.insert(long_word_cands, cand)
             else

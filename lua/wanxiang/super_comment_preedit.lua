@@ -107,7 +107,7 @@ function CR.init(env)
     corrections_cache = {}
     for line in file:lines() do
         if not line:match("^#") then
-            local text, code, weight, comment = line:match("^(.-)\t(.-)\t(.-)\t(.-)$")
+            local text, code, _, comment = line:match("^(.-)\t(.-)\t(.-)\t(.-)$")
             if text and code then
                 text = text:match("^%s*(.-)%s*$")
                 code = code:match("^%s*(.-)%s*$")
@@ -192,7 +192,7 @@ local function get_charset_label(text)
     return nil
 end
 
-local function get_az_comment(cand, env, initial_comment)
+local function get_az_comment(cand, initial_comment)
     local inner_parts = {}
 
     -- 音形注释拆解逻辑
@@ -422,7 +422,7 @@ local function apply_aux_preedit(env, cand)
 
         -- 处理非行首（音节中间或靠后）的双大写
         -- 比如 "nihaoWS" -> "nihao·"
-        converted = converted:gsub("([^%s%^])([A-Z][A-Z]+)", function(prev, upper)
+        converted = converted:gsub("([^%s%^])([A-Z][A-Z]+)", function(prev, _)
             return prev .. aux_symbol
         end)
 
@@ -472,7 +472,6 @@ function ZH.fini(env)
     SV.fini(env)
 end
 function ZH.func(input, env)
-    local config = env.engine.schema.config
     local context = env.engine.context
     local input_str = context.input or ""
     local is_radical_mode = wanxiang.is_in_radical_mode(env)
@@ -482,9 +481,6 @@ function ZH.func(input, env)
     local is_comment_hint = env.engine.context:get_option("fuzhu_hint")
     local is_chaifen_enabled = env.engine.context:get_option("chaifen_switch")
     local index = 0
-    -- auto_phrase 相关声明
-    local enable_auto_phrase = config:get_bool("add_user_dict/enable_auto_phrase") or false
-    local enable_user_dict = config:get_bool("add_user_dict/enable_user_dict") or false
 
     for cand in input:iter() do
         local genuine_cand = cand:get_genuine()
@@ -550,7 +546,7 @@ function ZH.func(input, env)
 
         -- ④ 反查模式提示
         if is_radical_mode then
-            local az_comment = get_az_comment(cand, env, initial_comment)
+            local az_comment = get_az_comment(cand, initial_comment)
             if az_comment and az_comment ~= "" then
                 final_comment = az_comment
             end

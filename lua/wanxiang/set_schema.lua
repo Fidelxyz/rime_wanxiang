@@ -73,6 +73,10 @@ local function translator(input, seg, env)
         for _, p in ipairs(paths) do
             if file_exists(p) then
                 local f = io.open(p, "r")
+                if not f then
+                    goto continue
+                end
+
                 local content = f:read("*a")
                 f:close()
 
@@ -92,6 +96,7 @@ local function translator(input, seg, env)
                     total_hits = total_hits + n
                     touched = touched + 1
                 end
+                ::continue::
             end
         end
 

@@ -113,14 +113,10 @@ end
 
 -- 入口
 function AP.func(input, env)
-    local config = env.engine.schema.config
-    local context = env.engine.context
-
     local use_comment_cache = env.memory ~= nil -- 只有中文造词才需要缓存注释
 
     for cand in input:iter() do
         local genuine_cand = cand:get_genuine()
-        local initial_comment = genuine_cand.comment
 
         if use_comment_cache then
             AP.save_comment_cache(cand, genuine_cand)
