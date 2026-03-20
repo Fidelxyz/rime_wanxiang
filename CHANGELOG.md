@@ -1,5 +1,17 @@
 # Changelog
 
+## [15.2.1](https://github.com/Fidelxyz/rime_wanxiang/compare/v15.2.0...v15.2.1) (2026-03-20)
+
+
+### 📖 文档
+
+* update README and release note ([6de5544](https://github.com/Fidelxyz/rime_wanxiang/commit/6de5544ae5186349df131829a044697446086fe9))
+
+
+### 🤖 持续集成
+
+* update exclude files list and cleanup scripts ([e2c2711](https://github.com/Fidelxyz/rime_wanxiang/commit/e2c271190399aae99cdbc6c5a8f39341d06571b7))
+
 ## 15.2.0 (2026-03-19)
 
 
